@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 103 168">
+  <defs>
+    <pattern id="backPattern" width="12" height="12" patternUnits="userSpaceOnUse">
+      <rect width="12" height="12" fill="#9b1c1c"/>
+      <circle cx="6" cy="6" r="2" fill="#c62828"/>
+    </pattern>
+  </defs>
+  <rect width="103" height="168" rx="6" fill="url(#backPattern)" stroke="#ffd700" stroke-width="3"/>
+  <rect x="10" y="10" width="83" height="148" rx="4" fill="none" stroke="#ffd700" stroke-width="2"/>
+  <text x="51.5" y="88" text-anchor="middle" fill="#ffd700" font-size="36" font-family="serif">?</text>
+  <text x="51.5" y="118" text-anchor="middle" fill="#ffd700" font-size="14" font-family="sans-serif">HWATU</text>
+</svg>
