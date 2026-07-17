@@ -1419,6 +1419,40 @@ button {
     padding-bottom: max(4px, env(safe-area-inset-bottom));
   }
 
+  .player-hand.player-bottom .hand-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .player-hand.player-bottom .hand-side-info {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .player-hand.player-bottom .hand-cards {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px 4px;
+    overflow: visible;
+    width: 100%;
+    flex: none;
+    padding: 0 2px 4px;
+    justify-content: center;
+  }
+
+  .player-hand.player-bottom .hand-cards .card-xl {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 103 / 168;
+    max-width: 100%;
+    justify-self: center;
+  }
+
   .hand-side-info {
     min-width: 48px;
     font-size: 0.78rem;
@@ -1551,6 +1585,11 @@ button {
   .card-xl {
     width: 44px;
     height: 68px;
+  }
+
+  .player-hand.player-bottom .hand-cards .card-xl {
+    width: 100%;
+    height: auto;
   }
 
   .card-table {
