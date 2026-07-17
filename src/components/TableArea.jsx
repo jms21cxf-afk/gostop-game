@@ -1,7 +1,24 @@
+import { useState, useEffect } from 'react';
 import Card from './Card';
 import { getCardBackPath } from '../data/cardImages';
 import { getTableCardLayout } from '../utils/tableLayout';
 import FloorFlipPile from './FloorFlipPile';
+
+function useCompactLayout() {
+  const [compact, setCompact] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setCompact(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  return compact;
+}
 
 export default function TableArea({
   cards,
@@ -14,7 +31,8 @@ export default function TableArea({
   pileActive = false,
   chooseMonth = null,
 }) {
-  const layouts = getTableCardLayout(cards);
+  const compact = useCompactLayout();
+  const layouts = getTableCardLayout(cards, { compact });
   const hidden = new Set(hiddenCardIds);
 
   return (
