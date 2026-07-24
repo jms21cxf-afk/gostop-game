@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Card from './Card';
 import { getCardBackPath } from '../data/cardImages';
 import { getTableCardLayout } from '../utils/tableLayout';
+import FloorFlipPile from './FloorFlipPile';
+
 function useCompactLayout() {
   const [compact, setCompact] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
@@ -24,6 +26,7 @@ export default function TableArea({
   selectable,
   stockCount,
   highlightCardId,
+  pileActive = false,
   chooseMonth = null,
 }) {
   const compact = useCompactLayout();
@@ -42,6 +45,8 @@ export default function TableArea({
             <span className="stock-count">덱 {stockCount}</span>
           </div>
         )}
+
+        <FloorFlipPile active={pileActive} />
 
         <div className="table-cards-scatter">
           {cards.length === 0 ? (

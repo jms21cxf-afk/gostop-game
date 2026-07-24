@@ -431,6 +431,14 @@ button {
   min-width: 0;
 }
 
+.player-hand.player-bottom {
+  background: transparent;
+}
+
+.player-hand.player-bottom.active {
+  background: transparent;
+}
+
 .player-hand.player-bottom .hand-cards {
   justify-content: center;
 }
@@ -811,50 +819,55 @@ button {
   border-radius: 12px;
 }
 
-/* ===== 뒤집는 더미 (가운데) ===== */
+/* ===== 뒤집는 더미 (바닥 오른쪽 아래 모서리) ===== */
 .floor-flip-pile {
   position: absolute;
-  left: 50%;
-  top: 52%;
-  transform: translate(-50%, -50%);
-  z-index: 12;
+  right: 8px;
+  bottom: 8px;
+  left: auto;
+  top: auto;
+  transform: none;
+  z-index: 6;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   pointer-events: none;
-  transition: transform 0.3s, filter 0.3s;
+  opacity: 0.78;
+  transition: transform 0.25s, filter 0.25s, opacity 0.25s;
 }
 
 .floor-flip-pile-active {
-  transform: translate(-50%, -50%) scale(1.08);
-  filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.55));
+  transform: scale(1.08);
+  opacity: 1;
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.5));
+  z-index: 14;
 }
 
 .floor-flip-stack {
   position: relative;
-  width: 58px;
-  height: 90px;
+  width: 46px;
+  height: 72px;
 }
 
 .floor-flip-card {
   position: absolute;
-  width: 54px;
-  height: 84px;
+  width: 42px;
+  height: 66px;
   border-radius: 5px;
   border: 2px solid #8b6914;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   object-fit: cover;
   background: #b71c1c;
 }
 
-.floor-flip-1 { left: 0; top: 0; transform: rotate(-3deg); z-index: 3; }
-.floor-flip-2 { left: 4px; top: -3px; transform: rotate(2deg); z-index: 2; opacity: 0.92; }
-.floor-flip-3 { left: 8px; top: -6px; transform: rotate(5deg); z-index: 1; opacity: 0.85; }
+.floor-flip-1 { left: 0; top: 0; transform: rotate(-4deg); z-index: 3; }
+.floor-flip-2 { left: 3px; top: -2px; transform: rotate(2deg); z-index: 2; opacity: 0.92; }
+.floor-flip-3 { left: 6px; top: -4px; transform: rotate(5deg); z-index: 1; opacity: 0.85; }
 
 .floor-flip-label {
-  font-size: 0.65rem;
-  opacity: 0.65;
+  font-size: 0.58rem;
+  opacity: 0.55;
   font-weight: 600;
 }
 
@@ -897,8 +910,8 @@ button {
 }
 
 .flying-place .flip-card-3d {
-  width: 80px;
-  height: 124px;
+  width: 52px;
+  height: 80px;
   position: relative;
   transform-style: preserve-3d;
   perspective: 800px;
@@ -919,7 +932,7 @@ button {
 .flying-place .flip-front { transform: rotateY(180deg); }
 
 .flying-place.place-to-pile {
-  animation: flyToPile 1.6s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+  animation: flyToPile 700ms cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
 }
 
 .flying-place.place-flip {
@@ -930,14 +943,14 @@ button {
 }
 
 .flying-place.place-flip .flip-card-3d {
-  animation: flipAtPile 0.7s ease-in-out forwards;
+  animation: flipAtPile 550ms ease-in-out forwards;
 }
 
 .flying-place.place-land {
   left: var(--px);
   top: var(--py);
   transform: translate(-50%, -50%);
-  animation: fadeOutPile 0.35s ease-out forwards;
+  animation: fadeOutPile 320ms ease-out forwards;
 }
 
 @keyframes flyToPile {
@@ -1474,6 +1487,11 @@ button {
 
   .player-hand {
     padding: 4px 6px;
+    background: transparent;
+  }
+
+  .player-hand.active {
+    background: transparent;
   }
 
   .player-hand.player-bottom {
@@ -1580,12 +1598,29 @@ button {
   }
 
   .floor-flip-pile {
-    top: 50%;
-    transform: translate(-50%, -50%) scale(0.82);
+    right: 4px;
+    bottom: 4px;
+    transform: none;
+    opacity: 0.72;
   }
 
   .floor-flip-pile-active {
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: scale(1.06);
+    opacity: 1;
+  }
+
+  .floor-flip-stack {
+    width: 34px;
+    height: 54px;
+  }
+
+  .floor-flip-card {
+    width: 32px;
+    height: 50px;
+  }
+
+  .floor-flip-label {
+    display: none;
   }
 
   .card-xl {

@@ -133,6 +133,7 @@ export default function GameBoard() {
   const [animQueue, setAnimQueue] = useState([]);
   const [hiddenCapturedIds, setHiddenCapturedIds] = useState([]);
   const [landingCapturedIds, setLandingCapturedIds] = useState([]);
+  const [pileActive, setPileActive] = useState(false);
   const [turnResting, setTurnResting] = useState(false);
 
   const processedSeqRef = useRef(0);
@@ -485,6 +486,7 @@ export default function GameBoard() {
           <FlyingCardLayer
             event={animEvent}
             onDone={finishAnimation}
+            onPileActive={setPileActive}
           />
 
           <PlayerHand
@@ -503,6 +505,7 @@ export default function GameBoard() {
             selectable={isChoosing}
             stockCount={stock.length}
             highlightCardId={aiTableHighlight}
+            pileActive={pileActive}
             chooseMonth={isChoosing ? gameState.pendingCard?.month : null}
           />
 
