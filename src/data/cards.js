@@ -85,7 +85,7 @@ const CARD_DEFS = [
   { month: 8, label: '피', piValue: 1, imageIndex: 31 },
 
   // 9월
-  { month: 9, label: '국화', imageIndex: 32 },
+  { month: 9, label: '국화', imageIndex: 32, dualYulPi: true },
   { month: 9, label: '청단', ribbon: 'cheong', imageIndex: 33 },
   { month: 9, label: '피', piValue: 1, imageIndex: 34 },
   { month: 9, label: '피', piValue: 1, imageIndex: 35 },
@@ -99,7 +99,7 @@ const CARD_DEFS = [
   // 11월 Hikari, Kasu×3
   { month: 11, label: '비', isRain: true, imageIndex: 40 },
   { month: 11, label: '비단', ribbon: 'plain', imageIndex: 41 },
-  { month: 11, label: '피', piValue: 1, imageIndex: 42 },
+  { month: 11, label: '쌍피', piValue: 2, imageIndex: 42 },
   { month: 11, label: '피', piValue: 1, imageIndex: 43 },
 
   // 12월 Tane, Tanzaku, Kasu, Hikari(쌍피)
@@ -108,6 +108,18 @@ const CARD_DEFS = [
   { month: 12, label: '피', piValue: 1, imageIndex: 46 },
   { month: 12, label: '쌍피', piValue: 2, imageIndex: 47 },
 ];
+
+/** 9·11·12월 — 피 칸에 있을 때 점수·집계 2장분 */
+export function getPiScoringValue(card) {
+  if (card?.type !== 'pi') return 0;
+  const idx = card.imageIndex ?? (() => {
+    const n = parseInt(String(card.id || '').replace('card-', ''), 10);
+    return n >= 0 && n < CARD_DEFS.length ? CARD_DEFS[n].imageIndex : null;
+  })();
+  if (idx === 32 && card.dualYulPi) return 2;
+  if (idx === 42 || idx === 47) return 2;
+  return card.piValue ?? 1;
+}
 
 export function createDeck() {
   return CARD_DEFS.map((def, index) => {
@@ -118,8 +130,32 @@ export function createDeck() {
       fallback: getCardFallbackPath(def.imageIndex),
       type,
       piValue: type === 'pi' ? (def.piValue ?? 1) : undefined,
+      dualYulPi: def.dualYulPi ?? false,
+      dualPending: false,
       ...def,
     };
+  });
+}
+
+export function isDualYulPiCard(card) {
+  return Boolean(card?.dualYulPi);
+}
+
+/** 9월 국화 — 엽 또는 피로 분류 */
+export function applyCaptureType(card, asType) {
+  if (!isDualYulPiCard(card)) return card;
+  if (asType === 'pi') {
+    return { ...card, type: 'pi', piValue: 2, dualPending: false, dualYulPi: true };
+  }
+  return { ...card, type: 'yul', piValue: undefined, dualPending: false, dualYulPi: true };
+}
+
+export function cardsForScoring(captured) {
+  return (captured || []).map((c) => {
+    if (c.dualPending && isDualYulPiCard(c)) {
+      return { ...c, type: 'yul', piValue: undefined };
+    }
+    return c;
   });
 }
 

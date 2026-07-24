@@ -304,6 +304,15 @@ button {
   opacity: 0.8;
 }
 
+.score-hand {
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
+.game-top-bar {
+  flex-shrink: 0;
+}
+
 .message-bar {
   background: rgba(255, 215, 0, 0.92);
   color: var(--text-dark);
@@ -737,7 +746,6 @@ button {
   left: 50%;
   top: 50%;
   transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, 0px))) rotate(var(--rot, 0deg));
-  transition: transform 0.35s ease-out;
 }
 
 .table-card-slot.selectable .card:not(:disabled) {
@@ -752,21 +760,6 @@ button {
 
 .table-card-slot.selectable {
   z-index: 50 !important;
-}
-
-.table-card-landing {
-  animation: tableCardLand 0.65s cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
-}
-
-@keyframes tableCardLand {
-  0% {
-    opacity: 0;
-    transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, 0px))) rotate(var(--rot, 0deg)) scale(0.35);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, 0px))) rotate(var(--rot, 0deg)) scale(1);
-  }
 }
 
 .empty-message {
@@ -1159,6 +1152,16 @@ button {
   color: #666;
 }
 
+.dual-capture-modal {
+  text-align: center;
+}
+
+.dual-capture-preview {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0 20px;
+}
+
 .game-end-modal {
   text-align: center;
   position: relative;
@@ -1261,31 +1264,56 @@ button {
     --font-size-base: 15px;
   }
 
+  @keyframes cardFlyMobile {
+    0% {
+      left: var(--fx);
+      top: var(--fy);
+      transform: translate(-50%, -50%) scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      left: var(--tx);
+      top: var(--ty);
+      transform: translate(-50%, -50%) scale(0.95) rotate(-2deg);
+      opacity: 1;
+    }
+  }
+
+  .flying-fly {
+    animation: cardFlyMobile 900ms cubic-bezier(0.18, 0.82, 0.25, 1) forwards;
+  }
+
   body {
     padding: 0;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   .game-board {
-    height: auto;
-    max-height: none;
+    height: 100svh;
+    max-height: 100svh;
     min-height: 100svh;
-    overflow: visible;
+    overflow: hidden;
   }
 
-  .compact-header {
-    padding: 6px 10px;
-    padding-top: max(6px, env(safe-area-inset-top));
-    padding-left: max(10px, env(safe-area-inset-left));
-    padding-right: max(10px, env(safe-area-inset-right));
-    gap: 6px;
+  .game-top-bar {
     position: sticky;
     top: 0;
     z-index: 50;
+    background: rgba(15, 45, 26, 0.98);
+    backdrop-filter: blur(6px);
+  }
+
+  .compact-header {
+    padding: 4px 10px;
+    padding-top: max(4px, env(safe-area-inset-top));
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    gap: 4px;
+    position: static;
   }
 
   .header-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
     white-space: nowrap;
   }
 
@@ -1296,118 +1324,151 @@ button {
   }
 
   .header-actions .btn-small {
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    min-height: 36px;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+    min-height: 32px;
   }
 
   .score-bar {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    gap: 4px;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto;
+    padding: 4px 8px 2px;
+    font-size: 0.75rem;
+    gap: 6px;
+    align-items: center;
   }
 
-  .score-yaku {
+  .score-yaku,
+  .score-total {
     display: none;
   }
 
   .score-center {
-    grid-column: 1 / -1;
-    flex-direction: row;
+    grid-column: auto;
+    flex-direction: column;
     justify-content: center;
-    gap: 10px;
+    gap: 0;
+    padding: 0 2px;
+  }
+
+  .score-name {
+    font-size: 0.78rem;
+    line-height: 1.15;
   }
 
   .score-points {
-    font-size: 1rem;
+    font-size: 0.92rem;
+    line-height: 1.15;
+  }
+
+  .score-hand {
+    font-size: 0.68rem;
+    line-height: 1.15;
+    opacity: 0.85;
+  }
+
+  .deck-mini {
+    font-size: 0.78rem;
+    gap: 4px;
+  }
+
+  .deck-stack-mini {
+    width: 16px;
+    height: 22px;
+  }
+
+  .round-mini {
+    font-size: 0.62rem;
+    line-height: 1.2;
   }
 
   .message-bar {
-    padding: 6px 10px;
-    font-size: 0.92rem;
-    min-height: 36px;
-    line-height: 1.35;
+    padding: 5px 10px;
+    font-size: 0.88rem;
+    min-height: 32px;
+    line-height: 1.3;
   }
 
   .play-area {
-    flex: none;
+    flex: 1;
     min-height: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: minmax(240px, 1fr) auto;
     gap: 3px;
     padding: 2px 4px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-    overflow: visible;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    overflow: hidden;
   }
 
   .play-center {
-    order: -1;
+    order: 0;
     grid-column: 1 / -1;
-    min-height: 0;
+    grid-row: 1;
+    min-height: 240px;
     gap: 2px;
+    overflow: visible;
   }
 
   .captured-left {
-    order: 1;
+    order: 0;
     grid-column: 1;
+    grid-row: 2;
     min-width: 0;
   }
 
   .captured-right {
-    order: 2;
+    order: 0;
     grid-column: 2;
+    grid-row: 2;
     min-width: 0;
   }
 
   .captured-strip {
-    max-height: 64px;
-    padding: 4px;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
+    max-height: clamp(72px, 14vh, 96px);
+    padding: 3px 4px;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: 2px;
   }
 
   .captured-strip-header {
-    flex-shrink: 0;
-    padding-bottom: 0;
-    padding-right: 4px;
-    border-bottom: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.15);
-    max-width: 52px;
-  }
-
-  .captured-strip-title {
-    font-size: 0.68rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .captured-strip-score {
-    font-size: 0.62rem;
+    display: none;
   }
 
   .captured-strip-groups {
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    flex: 1;
-    min-width: 0;
-    overflow-x: auto;
+    overflow: visible;
+    gap: 2px;
   }
 
   .captured-strip-group {
     flex-direction: row;
-    align-items: center;
-    gap: 2px;
+    align-items: flex-start;
+    gap: 3px;
+  }
+
+  .strip-label {
+    min-width: 1.6em;
     flex-shrink: 0;
+    padding-top: 2px;
+    font-size: 0.62rem;
+  }
+
+  .strip-cards {
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 2px;
   }
 
   .captured-yaku-row {
+    display: none;
+  }
+
+  .stock-pile {
     display: none;
   }
 
@@ -1422,7 +1483,7 @@ button {
   .player-hand.player-bottom .hand-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: 4px;
   }
 
   .player-hand.player-bottom .hand-side-info {
@@ -1448,6 +1509,7 @@ button {
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
+    max-height: clamp(56px, 12.5vw, 70px);
     aspect-ratio: 103 / 168;
     max-width: 100%;
     justify-self: center;
@@ -1476,20 +1538,36 @@ button {
     padding: 2px 0;
   }
 
+  .player-hand.player-top {
+    flex-shrink: 0;
+    min-height: 42px;
+  }
+
   .player-hand.player-top .hand-row {
     flex-direction: row-reverse;
   }
 
-  .table-area {
-    min-height: 0;
-    flex: none;
+  .player-hand.player-top .hand-cards {
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow: visible;
+    row-gap: 2px;
   }
 
   .table-felt {
-    min-height: clamp(140px, 32vw, 200px);
+    min-height: clamp(100px, 22vh, 150px);
     height: auto;
+    flex: 1 1 auto;
     border-radius: 14px;
-    overflow: hidden;
+    overflow: visible;
+  }
+
+  .table-area {
+    min-height: clamp(100px, 22vh, 150px);
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
   }
 
   .table-label {
@@ -1516,8 +1594,8 @@ button {
   }
 
   .card-table {
-    width: clamp(40px, 10vw, 54px);
-    height: clamp(62px, 16vw, 84px);
+    width: clamp(38px, 9vw, 50px);
+    height: clamp(59px, 14vw, 78px);
   }
 
   .card-ai {
@@ -1531,14 +1609,21 @@ button {
   }
 
   .card-captured {
-    width: clamp(24px, 5.5vw, 32px);
-    height: clamp(37px, 8.5vw, 50px);
+    width: clamp(22px, 5vw, 28px);
+    height: clamp(34px, 7.8vw, 44px);
+  }
+
+  .captured-card-landing {
+    animation: none;
   }
 
   .choose-hint {
-    padding: 6px 8px;
-    font-size: 0.82rem;
-    line-height: 1.35;
+    display: none;
+  }
+
+  .player-hand.player-bottom .player-name,
+  .player-hand.player-top .player-name {
+    display: none;
   }
 
   .gostop-buttons {
@@ -1593,12 +1678,8 @@ button {
   }
 
   .card-table {
-    width: 38px;
-    height: 59px;
-  }
-
-  .captured-strip {
-    max-height: 60px;
+    width: 36px;
+    height: 56px;
   }
 }
 

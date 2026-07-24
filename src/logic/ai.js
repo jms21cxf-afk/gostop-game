@@ -76,6 +76,14 @@ export function aiChooseGoStop(state) {
   return 'go';
 }
 
+export function aiChooseCaptureType(player, card) {
+  const captured = player.captured || [];
+  const without = captured.filter((c) => c.id !== card.id);
+  const asYul = calculateScore([...without, { ...card, type: 'yul', piValue: undefined, dualPending: false }]).total;
+  const asPi = calculateScore([...without, { ...card, type: 'pi', piValue: 2, dualPending: false }]).total;
+  return asPi > asYul ? 'pi' : 'yul';
+}
+
 export function isAiTurn(state) {
   return state?.currentPlayer === AI_PLAYER;
 }

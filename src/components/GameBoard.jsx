@@ -4,6 +4,7 @@ import {
   startNewGame,
   playCardFromHand,
   chooseMatch,
+  chooseCaptureType,
   handleGo,
   handleStop,
 } from '../logic/gameEngine';
@@ -14,6 +15,7 @@ import StartScreen from './StartScreen';
 import PlayerHand from './PlayerHand';
 import TableArea from './TableArea';
 import GoStopModal from './GoStopModal';
+import DualCaptureModal from './DualCaptureModal';
 import GameEndModal from './GameEndModal';
 import HelpModal from './HelpModal';
 import MuteButton from './MuteButton';
@@ -26,7 +28,6 @@ const AI_PREVIEW_MS = 1200;
 const TURN_REST_MS = 2400;
 const ANIM_GAP_MS = 950;
 const CAPTURE_LAND_MS = 800;
-const TABLE_LAND_MS = 900;
 
 function getQueuedPrehideEvents(gameState, processedSeq, animEvent, animQueue) {
   const queueSeqs = new Set(animQueue.map((e) => e.seq));
@@ -39,15 +40,12 @@ function getQueuedPrehideEvents(gameState, processedSeq, animEvent, animQueue) {
 
 function getPrehiddenIds(events) {
   const captured = [];
-  const table = [];
   for (const ev of events) {
     if (!ev.cards?.length) continue;
     if (ev.to === 'captured') captured.push(...ev.cards.map((c) => c.id));
-    if (ev.to === 'table' && ev.type !== 'ppung') table.push(...ev.cards.map((c) => c.id));
   }
   return {
     captured: [...new Set(captured)],
-    table: [...new Set(table)],
   };
 }
 
@@ -85,6 +83,7 @@ function getDisplayMessage({
   aiThinking,
   aiPreviewCard,
   isChoosing,
+  isChoosingCapture,
   isBusy,
   animEvent,
   animQueue,
@@ -101,6 +100,10 @@ function getDisplayMessage({
     if (ev?.type === 'flip_stock') return '② 덱에서 카드를 뒤집는 중...';
     if (ev?.type === 'play_hand' && ev?.to === 'captured') return '✨ 짝! 먹은 패로 가져갑니다...';
     if (ev?.type === 'play_hand') return '① 카드를 냈어요 · 곧 ② 덱을 뒤집습니다...';
+  }
+
+  if (isChoosingCapture) {
+    return '9월 국화를 먹었어요! 👇 엽 또는 피 중 어디에 둘지 고르세요';
   }
 
   if (isChoosing) {
@@ -128,11 +131,8 @@ export default function GameBoard() {
   const [statusMessage, setStatusMessage] = useState('');
   const [animEvent, setAnimEvent] = useState(null);
   const [animQueue, setAnimQueue] = useState([]);
-  const [hiddenTableCards, setHiddenTableCards] = useState([]);
-  const [landingTableCards, setLandingTableCards] = useState([]);
   const [hiddenCapturedIds, setHiddenCapturedIds] = useState([]);
   const [landingCapturedIds, setLandingCapturedIds] = useState([]);
-  const [pileActive, setPileActive] = useState(false);
   const [turnResting, setTurnResting] = useState(false);
 
   const processedSeqRef = useRef(0);
@@ -165,7 +165,6 @@ export default function GameBoard() {
   );
   const prehidden = getPrehiddenIds(queuedPrehide);
   const displayHiddenCaptured = [...new Set([...hiddenCapturedIds, ...prehidden.captured])];
-  const displayHiddenTable = [...new Set([...hiddenTableCards, ...prehidden.table])];
 
   useEffect(() => {
     if (gameState && gameState.phase !== PHASE.GAME_END) {
@@ -207,9 +206,6 @@ export default function GameBoard() {
       return;
     }
 
-    if (next.to === 'table' && next.type !== 'ppung') {
-      setHiddenTableCards((prev) => [...new Set([...prev, ...next.cards.map((c) => c.id)])]);
-    }
     if (next.to === 'captured') {
       setHiddenCapturedIds((prev) => [...new Set([...prev, ...next.cards.map((c) => c.id)])]);
     }
@@ -272,14 +268,6 @@ export default function GameBoard() {
     if (!animQueue.length || animEvent || turnResting) return;
     startNextAnimation();
   }, [animQueue.length, animEvent, turnResting, startNextAnimation]);
-
-  const handleTableLand = useCallback((cardIds) => {
-    setHiddenTableCards((prev) => prev.filter((id) => !cardIds.includes(id)));
-    setLandingTableCards((prev) => [...new Set([...prev, ...cardIds])]);
-    setTimeout(() => {
-      setLandingTableCards((prev) => prev.filter((id) => !cardIds.includes(id)));
-    }, TABLE_LAND_MS);
-  }, []);
 
   const resetAiState = useCallback(() => {
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
@@ -448,6 +436,7 @@ export default function GameBoard() {
 
   const { players, currentPlayer, table, stock, phase, round, targetScore } = gameState;
   const isChoosing = phase === PHASE.CHOOSE_MATCH && currentPlayer === 0;
+  const isChoosingCapture = phase === PHASE.CHOOSE_CAPTURE_TYPE && currentPlayer === 0;
   const isPlayerGoStop = phase === PHASE.GO_STOP && currentPlayer === 0;
 
   const displayMessage = getDisplayMessage({
@@ -457,6 +446,7 @@ export default function GameBoard() {
     aiThinking,
     aiPreviewCard,
     isChoosing,
+    isChoosingCapture,
     isBusy,
     animEvent,
     animQueue,
@@ -464,19 +454,21 @@ export default function GameBoard() {
 
   return (
     <div className="game-board">
-      <header className="game-header compact-header">
-        <h1 className="header-title">🎴 고스톱</h1>
-        <div className="header-actions">
-          <MuteButton />
-          <button className="btn btn-small" onClick={() => setShowHelp(true)}>❓ 도움말</button>
-          <button className="btn btn-small btn-danger" onClick={handleNewGame}>나가기</button>
+      <div className="game-top-bar">
+        <header className="game-header compact-header">
+          <h1 className="header-title">🎴 고스톱</h1>
+          <div className="header-actions">
+            <MuteButton />
+            <button className="btn btn-small" onClick={() => setShowHelp(true)}>❓ 도움말</button>
+            <button className="btn btn-small btn-danger" onClick={handleNewGame}>나가기</button>
+          </div>
+        </header>
+
+        <ScoreBar players={players} stockCount={stock.length} round={round} targetScore={targetScore} />
+
+        <div className={`message-bar ${isChoosing || isChoosingCapture ? 'message-bar-hint' : ''} ${turnResting ? 'message-bar-rest' : ''}`} role="status" aria-live="polite">
+          {displayMessage}
         </div>
-      </header>
-
-      <ScoreBar players={players} stockCount={stock.length} round={round} targetScore={targetScore} />
-
-      <div className={`message-bar ${isChoosing ? 'message-bar-hint' : ''} ${turnResting ? 'message-bar-rest' : ''}`} role="status" aria-live="polite">
-        {displayMessage}
       </div>
 
       <div className="play-area">
@@ -493,8 +485,6 @@ export default function GameBoard() {
           <FlyingCardLayer
             event={animEvent}
             onDone={finishAnimation}
-            onPileActive={setPileActive}
-            onTableLand={handleTableLand}
           />
 
           <PlayerHand
@@ -513,9 +503,6 @@ export default function GameBoard() {
             selectable={isChoosing}
             stockCount={stock.length}
             highlightCardId={aiTableHighlight}
-            hiddenCardIds={displayHiddenTable}
-            landingCardIds={landingTableCards}
-            pileActive={pileActive}
             chooseMonth={isChoosing ? gameState.pendingCard?.month : null}
           />
 
@@ -544,6 +531,16 @@ export default function GameBoard() {
           landingIds={landingCapturedIds}
         />
       </div>
+
+      {isChoosingCapture && (
+        <DualCaptureModal
+          card={gameState.pendingDualCard}
+          onChoose={(asType) => {
+            playSound('match');
+            setGameState((prev) => chooseCaptureType(prev, asType));
+          }}
+        />
+      )}
 
       {isPlayerGoStop && (
         <GoStopModal

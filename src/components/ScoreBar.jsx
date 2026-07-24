@@ -11,6 +11,7 @@ export default function ScoreBar({ players, stockCount, round, targetScore }) {
       <div className="score-block score-user">
         <span className="score-name">{p0.name}</span>
         <span className="score-points">{p0.score}점</span>
+        <span className="score-hand">패 {p0.hand.length}장</span>
         <span className="score-total">누적 {p0.totalScore}</span>
         {y0.length > 0 && (
           <span className="score-yaku">{y0.map((y) => y.name).join(' ')}</span>
@@ -28,6 +29,7 @@ export default function ScoreBar({ players, stockCount, round, targetScore }) {
       <div className="score-block score-ai">
         <span className="score-name">🤖 {p1.name}</span>
         <span className="score-points">{p1.score}점</span>
+        <span className="score-hand">패 {p1.hand.length}장</span>
         <span className="score-total">누적 {p1.totalScore}</span>
         {y1.length > 0 && (
           <span className="score-yaku">{y1.map((y) => y.name).join(' ')}</span>

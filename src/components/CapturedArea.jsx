@@ -1,4 +1,5 @@
 import { calculateScore } from '../logic/scoring';
+import { getPiScoringValue } from '../data/cards';
 import Card from './Card';
 
 export default function CapturedArea({ captured, playerName, score, totalScore }) {
@@ -56,7 +57,7 @@ export default function CapturedArea({ captured, playerName, score, totalScore }
         )}
         {grouped.pi.length > 0 && (
           <div className="captured-group">
-            <span className="group-label">피 {grouped.pi.reduce((s, p) => s + (p.piValue || 1), 0)}</span>
+            <span className="group-label">피 {grouped.pi.reduce((s, p) => s + getPiScoringValue(p), 0)}</span>
             <div className="group-cards">
               {grouped.pi.map((c) => <Card key={c.id} card={c} size="tiny" disabled />)}
             </div>

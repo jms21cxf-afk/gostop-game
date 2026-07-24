@@ -1,15 +1,17 @@
 // 고스톱 점수(족보) 계산
 
 import { findChongtongMonths } from './dealChecks';
+import { cardsForScoring, getPiScoringValue } from '../data/cards';
 
 export function calculateScore(captured) {
   const yaku = [];
   let total = 0;
 
-  const kwangs = captured.filter((c) => c.type === 'kwang');
-  const yuls = captured.filter((c) => c.type === 'yul');
-  const ttis = captured.filter((c) => c.type === 'tti');
-  const pis = captured.filter((c) => c.type === 'pi');
+  const scored = cardsForScoring(captured);
+  const kwangs = scored.filter((c) => c.type === 'kwang');
+  const yuls = scored.filter((c) => c.type === 'yul');
+  const ttis = scored.filter((c) => c.type === 'tti');
+  const pis = scored.filter((c) => c.type === 'pi');
 
   const kwangCount = kwangs.length;
   const hasRain = kwangs.some((k) => k.isRain);
@@ -33,7 +35,7 @@ export function calculateScore(captured) {
   }
 
   // 고도리 (새 3장: 2,4,8,12월 중 3장)
-  const birds = captured.filter((c) => c.isBird);
+  const birds = scored.filter((c) => c.isBird);
   if (birds.length >= 3) {
     yaku.push({ name: '고도리', points: 5 });
     total += 5;
@@ -46,9 +48,10 @@ export function calculateScore(captured) {
     total += 3;
   }
 
-  // 청단 (9,10월 청단 띠 2장)
-  const cheongdan = ttis.filter((t) => t.ribbon === 'cheong');
-  if (cheongdan.length >= 2) {
+  // 청단 (6,9,10월 띠 3장)
+  const cheongdanMonths = [6, 9, 10];
+  const hasCheongdan = cheongdanMonths.every((m) => ttis.some((t) => t.month === m));
+  if (hasCheongdan) {
     yaku.push({ name: '청단', points: 3 });
     total += 3;
   }
@@ -82,8 +85,8 @@ export function calculateScore(captured) {
     total += ttiPts;
   }
 
-  // 피 - 10장 이상 (쌍피는 2장으로 계산)
-  const piCount = pis.reduce((sum, p) => sum + (p.piValue || 1), 0);
+  // 피 - 10장 이상 (9·11·12월 쌍피는 2장분으로 계산)
+  const piCount = pis.reduce((sum, p) => sum + getPiScoringValue(p), 0);
   if (piCount >= 10) {
     const piPts = piCount - 9;
     yaku.push({ name: `피 ${piCount}장`, points: piPts });

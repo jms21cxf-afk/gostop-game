@@ -1,13 +1,21 @@
 import { dealUntilValid } from './dealChecks';
 import { calculateScore, canGoStop } from './scoring';
+import { isDualYulPiCard, applyCaptureType } from '../data/cards';
+import { aiChooseCaptureType } from './ai';
 
 export const PHASE = {
   START: 'start',
   PLAYING: 'playing',
   CHOOSE_MATCH: 'choose_match',
+  CHOOSE_CAPTURE_TYPE: 'choose_capture_type',
   GO_STOP: 'go_stop',
   ROUND_END: 'round_end',
   GAME_END: 'game_end',
+};
+
+export const RESUME_AFTER = {
+  FLIP_STOCK: 'flip_stock',
+  END_TURN: 'end_turn',
 };
 
 function emitEvent(state, event) {
@@ -45,6 +53,8 @@ export function createInitialState(playerName = '나', aiName = '컴퓨터') {
     pendingCard: null,
     matchCandidates: [],
     matchSource: null,
+    pendingDualCard: null,
+    dualResumeAfter: null,
     round: 1,
     targetScore: 7,
     winner: null,
@@ -65,10 +75,74 @@ function removeFromTable(table, cards) {
 }
 
 function captureCards(player, cards) {
+  const normalized = cards.map((c) =>
+    isDualYulPiCard(c) ? { ...c, dualPending: true } : c,
+  );
   return {
     ...player,
-    captured: [...player.captured, ...cards],
+    captured: [...player.captured, ...normalized],
   };
+}
+
+function getPendingDualCards(player) {
+  return (player.captured || []).filter((c) => c.dualPending && isDualYulPiCard(c));
+}
+
+function resolveDualForAi(state, playerIdx, resumeAfter) {
+  let next = state;
+  let pending = getPendingDualCards(next.players[playerIdx]);
+  while (pending.length > 0) {
+    const card = pending[0];
+    const player = next.players[playerIdx];
+    const asType = aiChooseCaptureType(player, card);
+    const newCaptured = player.captured.map((c) =>
+      c.id === card.id ? applyCaptureType(c, asType) : c,
+    );
+    const updated = updatePlayerScore({ ...player, captured: newCaptured });
+    next = {
+      ...next,
+      players: next.players.map((p, i) => (i === playerIdx ? updated : p)),
+    };
+    pending = getPendingDualCards(updated);
+  }
+  return continueAfterCapture(next, playerIdx, resumeAfter, true);
+}
+
+function promptDualChoiceIfNeeded(state, playerIdx, resumeAfter) {
+  const player = state.players[playerIdx];
+  const pending = getPendingDualCards(player);
+  if (pending.length === 0) return null;
+
+  if (player.isAi) {
+    return resolveDualForAi(state, playerIdx, resumeAfter);
+  }
+
+  return {
+    ...state,
+    phase: PHASE.CHOOSE_CAPTURE_TYPE,
+    pendingDualCard: pending[0],
+    dualResumeAfter: resumeAfter,
+    message: '9월 국화는 엽 또는 피 중 어디에 둘까요?',
+  };
+}
+
+function continueAfterCapture(state, playerIdx, resumeAfter, skipDualCheck = false) {
+  if (!skipDualCheck) {
+    const prompted = promptDualChoiceIfNeeded(state, playerIdx, resumeAfter);
+    if (prompted) return prompted;
+  }
+
+  if (resumeAfter === RESUME_AFTER.FLIP_STOCK) {
+    return flipStockCard(state);
+  }
+
+  if (resumeAfter === RESUME_AFTER.END_TURN) {
+    let newState = checkGoStop(state, playerIdx);
+    if (newState.phase === PHASE.GO_STOP) return newState;
+    return endTurn(newState);
+  }
+
+  return state;
 }
 
 function updatePlayerScore(player) {
@@ -207,6 +281,8 @@ function endTurn(state) {
     pendingCard: null,
     matchCandidates: [],
     matchSource: null,
+    pendingDualCard: null,
+    dualResumeAfter: null,
   };
 }
 
@@ -283,7 +359,7 @@ export function playCardFromHand(state, cardId) {
     return newState;
   }
 
-  return flipStockCard(newState);
+  return continueAfterCapture(newState, playerIdx, RESUME_AFTER.FLIP_STOCK);
 }
 
 function flipStockCard(state) {
@@ -306,12 +382,7 @@ function flipStockCard(state) {
     return newState;
   }
 
-  newState = checkGoStop(newState, playerIdx);
-  if (newState.phase === PHASE.GO_STOP) {
-    return newState;
-  }
-
-  return endTurn(newState);
+  return continueAfterCapture(newState, playerIdx, RESUME_AFTER.END_TURN);
 }
 
 export function chooseMatch(state, tableCardId) {
@@ -334,12 +405,44 @@ export function chooseMatch(state, tableCardId) {
   };
 
   if (isFromStock) {
-    newState = checkGoStop(newState, playerIdx);
-    if (newState.phase === PHASE.GO_STOP) return newState;
-    return endTurn(newState);
+    return continueAfterCapture(newState, playerIdx, RESUME_AFTER.END_TURN);
   }
 
-  return flipStockCard(newState);
+  return continueAfterCapture(newState, playerIdx, RESUME_AFTER.FLIP_STOCK);
+}
+
+export function chooseCaptureType(state, asType) {
+  if (state.phase !== PHASE.CHOOSE_CAPTURE_TYPE) return state;
+  if (asType !== 'yul' && asType !== 'pi') return state;
+
+  const playerIdx = state.currentPlayer;
+  const card = state.pendingDualCard;
+  if (!card) return state;
+
+  const player = state.players[playerIdx];
+  const newCaptured = player.captured.map((c) =>
+    c.id === card.id ? applyCaptureType(c, asType) : c,
+  );
+  const updatedPlayer = updatePlayerScore({ ...player, captured: newCaptured });
+
+  let newState = {
+    ...state,
+    players: state.players.map((p, i) => (i === playerIdx ? updatedPlayer : p)),
+    pendingDualCard: null,
+    phase: PHASE.PLAYING,
+  };
+
+  const stillPending = getPendingDualCards(updatedPlayer);
+  if (stillPending.length > 0) {
+    return {
+      ...newState,
+      phase: PHASE.CHOOSE_CAPTURE_TYPE,
+      pendingDualCard: stillPending[0],
+      message: '9월 국화는 엽 또는 피 중 어디에 둘까요?',
+    };
+  }
+
+  return continueAfterCapture(newState, playerIdx, state.dualResumeAfter, true);
 }
 
 export function handleGo(state) {
@@ -355,6 +458,8 @@ export function handleGo(state) {
     pendingCard: null,
     matchCandidates: [],
     matchSource: null,
+    pendingDualCard: null,
+    dualResumeAfter: null,
     message: `${state.players[playerIdx].name}님이 고를 외쳤습니다!`,
   }, { type: 'go', playerIdx, cards: [] });
 
@@ -408,6 +513,8 @@ export function handleStop(state) {
     pendingCard: null,
     matchCandidates: [],
     matchSource: null,
+    pendingDualCard: null,
+    dualResumeAfter: null,
     message: stopMsg,
   };
 }

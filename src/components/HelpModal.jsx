@@ -44,15 +44,25 @@ export default function HelpModal({ onClose }) {
         <section>
           <h3>초가리 · 총통 (같은 달 4장)</h3>
           <ul>
-            <li><strong>초가리</strong>: 시작할 때 손패에 같은 달 4장 → <strong>다시 나눔</strong> (이 게임 자동 처리)</li>
-            <li><strong>총통</strong>: 플레이 중 같은 달 4장을 모두 먹으면 <strong>+5점</strong></li>
-            <li>손패에 4장이면 그 달은 상대가 낼 수 없어요 · 하나씩 내다 보면 됩니다</li>
+            <li>
+              <strong>초가리</strong>: <strong>게임 막 시작할 때</strong> 손패에 같은 달 4장이 있으면
+              {' '}<strong>카드를 다시 나눕니다</strong> (아직 한 장도 내지 않은 상태 · 이 게임 자동 처리)
+            </li>
+            <li>
+              <strong>총통</strong>: <strong>플레이 중</strong> 같은 달 4장을 <strong>전부 먹으면</strong>{' '}
+              <strong>+5점</strong>
+            </li>
+            <li>
+              같은 달 4장을 <strong>전부 내 쪽</strong>(손패 + 먹은 패)에서 갖게 되면, 상대는 그 달 카드가
+              없어서 맞출 수 없습니다 · <strong>급하지 않게 한 장씩</strong> 내면 됩니다
+            </li>
           </ul>
         </section>
 
         <section>
           <h3>특수 규칙</h3>
           <ul>
+            <li><strong>9월 국화(엽)</strong>: 엽·피 둘 다 가능 → 먹을 때 <strong>어디에 둘지</strong> 선택</li>
             <li><strong>뻥</strong>: 바닥에 같은 월 3장 + 내 카드 1장 = 4장 모두 가져감</li>
             <li><strong>쪽</strong>: 바닥에 같은 월 1장 + 내 카드 = 2장 가져감</li>
           </ul>
@@ -64,11 +74,11 @@ export default function HelpModal({ onClose }) {
             <li><strong>5광</strong>: 15점 | <strong>4광</strong>: 4점 | <strong>3광</strong>: 3점</li>
             <li><strong>고도리</strong> (새 3장): 5점</li>
             <li><strong>홍단</strong> (6,7,10월 띠): 3점</li>
-            <li><strong>청단</strong> (9,10월 띠 2장): 3점</li>
+            <li><strong>청단</strong> (6,9,10월 띠 3장): 3점</li>
             <li><strong>초단</strong> (4,5,6월 띠): 3점</li>
             <li><strong>엽</strong> 5장 이상: 장당 1점</li>
             <li><strong>띠</strong> 5장 이상: 장당 1점</li>
-            <li><strong>피</strong> 10장 이상: 장당 1점</li>
+            <li><strong>피</strong> 10장 이상: 장당 1점 (9월 국화·11·12월 쌍피는 <strong>2장분</strong>)</li>
           </ul>
         </section>
 

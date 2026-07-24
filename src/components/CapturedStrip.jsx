@@ -1,5 +1,5 @@
 import { calculateScore } from '../logic/scoring';
-import { groupCapturedByType } from '../data/cards';
+import { groupCapturedByType, getPiScoringValue } from '../data/cards';
 import Card from './Card';
 
 export default function CapturedStrip({
@@ -16,7 +16,7 @@ export default function CapturedStrip({
 
   const grouped = groupCapturedByType(visible);
 
-  const piTotal = grouped.pi.reduce((s, p) => s + (p.piValue || 1), 0);
+  const piTotal = grouped.pi.reduce((s, p) => s + getPiScoringValue(p), 0);
   const totalCards = (captured || []).length;
 
   return (

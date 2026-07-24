@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import Card from './Card';
 import { getCardBackPath } from '../data/cardImages';
 import { getTableCardLayout } from '../utils/tableLayout';
-import FloorFlipPile from './FloorFlipPile';
-
 function useCompactLayout() {
   const [compact, setCompact] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
@@ -26,14 +24,10 @@ export default function TableArea({
   selectable,
   stockCount,
   highlightCardId,
-  hiddenCardIds = [],
-  landingCardIds = [],
-  pileActive = false,
   chooseMonth = null,
 }) {
   const compact = useCompactLayout();
   const layouts = getTableCardLayout(cards, { compact });
-  const hidden = new Set(hiddenCardIds);
 
   return (
     <div className="table-area">
@@ -49,20 +43,16 @@ export default function TableArea({
           </div>
         )}
 
-        <FloorFlipPile active={pileActive} />
-
         <div className="table-cards-scatter">
-          {cards.length === 0 && !pileActive ? (
+          {cards.length === 0 ? (
             <p className="empty-message">바닥</p>
           ) : (
             layouts.map(({ card, style }) => {
-              if (hidden.has(card.id)) return null;
-              const isLanding = landingCardIds.includes(card.id);
               const isChooseCandidate = selectable && chooseMonth && card.month === chooseMonth;
               return (
                 <div
                   key={card.id}
-                  className={`table-card-slot ${isChooseCandidate ? 'selectable choose-candidate' : ''} ${card.id === highlightCardId ? 'ai-highlight' : ''} ${isLanding ? 'table-card-landing' : ''}`}
+                  className={`table-card-slot ${isChooseCandidate ? 'selectable choose-candidate' : ''} ${card.id === highlightCardId ? 'ai-highlight' : ''}`}
                   style={style}
                 >
                   <Card
