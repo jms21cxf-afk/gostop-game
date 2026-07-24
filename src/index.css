@@ -1531,6 +1531,16 @@ button {
     aspect-ratio: 103 / 168;
     max-width: 100%;
     justify-self: center;
+    background: transparent;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  .player-hand.player-bottom .hand-cards .card-xl .card-img {
+    object-fit: cover;
+    transform: scale(1.2);
+    transform-origin: center center;
   }
 
   .hand-side-info {
