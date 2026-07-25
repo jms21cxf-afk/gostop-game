@@ -971,6 +971,10 @@ button {
 .flying-place .flip-back { transform: rotateY(0deg); }
 .flying-place .flip-front { transform: rotateY(180deg); }
 
+.flying-place.place-to-pile {
+  animation: flyDeckToPile 700ms cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+}
+
 .flying-place.place-at-pile {
   left: var(--px);
   top: var(--py);
@@ -988,15 +992,30 @@ button {
   animation: flipAtPile 550ms ease-in-out forwards;
 }
 
-.flying-place.place-fly-table {
-  animation: flyPileToTable 700ms cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+.flying-place.place-fly-dest {
+  animation: flyPileToDest 700ms cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
 }
 
-.flying-place.place-fly-table .flip-card-3d {
+.flying-place.place-fly-dest .flip-card-3d {
   transform: rotateY(180deg);
 }
 
-@keyframes flyPileToTable {
+@keyframes flyDeckToPile {
+  0% {
+    left: var(--fx);
+    top: var(--fy);
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    left: var(--px);
+    top: var(--py);
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes flyPileToDest {
   0% {
     left: var(--px);
     top: var(--py);
@@ -1344,6 +1363,13 @@ button {
     max-height: 100svh;
     min-height: 100svh;
     overflow: hidden;
+    /* 테트리스처럼 화면 크기에 맞춰 손패 카드 자동 조절 */
+    --hand-cols: 5;
+    --hand-card-max-h: min(
+      calc((100vw - 24px) / var(--hand-cols) * 168 / 103),
+      13.5svh,
+      calc((100svh - 22svh - 96px) * 0.26)
+    );
   }
 
   .game-top-bar {
@@ -1351,7 +1377,7 @@ button {
     top: 0;
     z-index: 50;
     background: rgba(15, 45, 26, 0.98);
-    backdrop-filter: blur(6px);
+    backdrop-filter: none;
   }
 
   .compact-header {
@@ -1579,7 +1605,7 @@ button {
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
-    max-height: clamp(44px, 9vw, 54px);
+    max-height: var(--hand-card-max-h);
     aspect-ratio: 103 / 168;
     max-width: 100%;
     justify-self: center;
@@ -1773,10 +1799,7 @@ button {
   }
 
   .player-hand.player-bottom .hand-cards .card-xl {
-    width: 100%;
-    height: auto;
-    max-height: clamp(40px, 8.5vw, 50px);
-    aspect-ratio: 103 / 168;
+    max-height: var(--hand-card-max-h);
   }
 
   .player-hand.player-bottom .hand-cards .card-xl .card-img {
@@ -1842,10 +1865,7 @@ button {
   }
 
   .player-hand.player-bottom .hand-cards .card-xl {
-    width: 100%;
-    height: auto;
-    max-height: clamp(40px, 8.5vw, 50px);
-    aspect-ratio: 103 / 168;
+    max-height: var(--hand-card-max-h);
   }
 
   .player-hand.player-bottom .hand-cards .card-xl .card-img {

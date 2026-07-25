@@ -23,11 +23,15 @@ export function useGostopGameState({ onSessionReset, processedSeqRef }) {
   gameStateRef.current = gameState;
 
   useEffect(() => {
-    if (gameState && gameState.phase !== PHASE.GAME_END) {
+    if (!gameState || gameState.phase === PHASE.GAME_END) return undefined;
+
+    const timer = setTimeout(() => {
       const { eventQueue, lastEvent, ...toSave } = gameState;
       saveGame(toSave);
       setSaved(true);
-    }
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, [gameState]);
 
   const resetProcessedSeq = useCallback(

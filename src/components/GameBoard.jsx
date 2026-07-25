@@ -358,6 +358,17 @@ export default function GameBoard() {
     );
   }
 
+  if (!gameState.players?.[0] || !gameState.players?.[1]) {
+    return (
+      <StartScreen
+        settings={settings}
+        onStart={onStart}
+        onContinue={onContinue}
+        hasSave={false}
+      />
+    );
+  }
+
   const { players, currentPlayer, table, stock, phase, round, targetScore } = gameState;
   const isChoosing = phase === PHASE.CHOOSE_MATCH && currentPlayer === 0;
 

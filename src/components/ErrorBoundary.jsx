@@ -1,6 +1,6 @@
 import { Component } from 'react';
 
-/** React 렌더 오류 + window 전역 오류 (모바일 크래시) */
+/** React 렌더 오류 시 초록 빈 화면 대신 복구 UI */
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -9,25 +9,6 @@ export default class ErrorBoundary extends Component {
 
   static getDerivedStateFromError(error) {
     return { error };
-  }
-
-  componentDidMount() {
-    this.onWindowError = (event) => {
-      if (event.error) this.setState({ error: event.error });
-    };
-    this.onRejection = (event) => {
-      const reason = event.reason instanceof Error
-        ? event.reason
-        : new Error(String(event.reason ?? '알 수 없는 오류'));
-      this.setState({ error: reason });
-    };
-    window.addEventListener('error', this.onWindowError);
-    window.addEventListener('unhandledrejection', this.onRejection);
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('error', this.onWindowError);
-    window.removeEventListener('unhandledrejection', this.onRejection);
   }
 
   componentDidCatch(error, info) {
