@@ -1,5 +1,10 @@
 import { useState, useCallback } from 'react';
-import { PHASE, chooseCaptureType, handleGo, handleStop } from '../logic/gameEngine';
+import {
+  PHASE,
+  chooseCaptureType,
+  handleGo as engineHandleGo,
+  handleStop as engineHandleStop,
+} from '../logic/gameEngine';
 import { playSound, unlockAudio } from '../utils/sounds';
 
 /**
@@ -26,14 +31,14 @@ export function useGameModals({ gameState, setGameState, resetAiState }) {
     unlockAudio();
     playSound('go');
     resetAiState?.();
-    setGameState((prev) => (prev ? handleGo(prev) : prev));
+    setGameState((prev) => (prev ? engineHandleGo(prev) : prev));
   }, [resetAiState, setGameState]);
 
   const handleStop = useCallback(() => {
     unlockAudio();
     playSound('stop');
     resetAiState?.();
-    setGameState((prev) => (prev ? handleStop(prev) : prev));
+    setGameState((prev) => (prev ? engineHandleStop(prev) : prev));
   }, [resetAiState, setGameState]);
 
   return {
