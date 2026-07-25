@@ -1,29 +1,35 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useLayoutEffect, useEffect } from 'react';
 
 /** visualViewport + PWA/브라우저 구분 — 크롬 하단 주소창·손패 잘림 보정 */
+function syncMode() {
+  const root = document.documentElement;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  root.classList.toggle('mode-standalone', standalone);
+  root.classList.toggle('mode-browser', !standalone);
+}
+
+function syncViewport() {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  let height;
+  if (vv && vv.height > 0) {
+    height = vv.height;
+  } else {
+    height = Math.max(window.innerHeight, 320);
+  }
+  root.style.setProperty('--app-height', `${height}px`);
+
+  if (vv) {
+    const bottomInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    root.style.setProperty('--vv-bottom', `${bottomInset}px`);
+  } else {
+    root.style.setProperty('--vv-bottom', '0px');
+  }
+}
+
 export function useViewportLayout() {
   useLayoutEffect(() => {
-    const root = document.documentElement;
-
-    const syncMode = () => {
-      const standalone = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
-      root.classList.toggle('mode-standalone', standalone);
-      root.classList.toggle('mode-browser', !standalone);
-    };
-
-    const syncViewport = () => {
-      const vv = window.visualViewport;
-      if (vv) {
-        root.style.setProperty('--app-height', `${vv.height}px`);
-        const bottomInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-        root.style.setProperty('--vv-bottom', `${bottomInset}px`);
-      } else {
-        root.style.setProperty('--app-height', `${window.innerHeight}px`);
-        root.style.setProperty('--vv-bottom', '0px');
-      }
-    };
-
     syncMode();
     syncViewport();
   }, []);

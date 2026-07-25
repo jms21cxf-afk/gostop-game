@@ -26,7 +26,8 @@
   html.mode-standalone {
     --hand-card-max-h: min(
       calc((100vw - 20px) / var(--hand-cols) * 168 / 103),
-      calc((var(--app-height, 100dvh) - var(--top-ui) - var(--captured-row) - var(--chrome-bottom)) / 2.05)
+      72px,
+      calc((var(--app-height, 100dvh) - var(--top-ui) - 100px - var(--chrome-bottom)) / 2.05)
     );
   }
 
@@ -51,8 +52,8 @@
 
   html,
   body {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
+    overflow-x: hidden;
   }
 
   body {
@@ -61,11 +62,11 @@
 
   #root,
   .app {
-    height: var(--app-height, 100dvh);
-    max-height: var(--app-height, 100dvh);
-    overflow: hidden;
+    min-height: var(--app-height, 100dvh);
+    overflow: visible;
   }
 
+  /* 게임 중에만 화면 고정 */
   .game-board {
     height: var(--app-height, 100dvh);
     max-height: var(--app-height, 100dvh);
@@ -73,6 +74,15 @@
     overflow: hidden;
     padding-bottom: var(--chrome-bottom);
     box-sizing: border-box;
+  }
+
+  .start-screen {
+    min-height: max(var(--app-height, 100dvh), 100dvh);
+    height: auto;
+    overflow-y: auto;
+    justify-content: flex-start;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(16px, var(--chrome-bottom));
   }
 
   .game-top-bar {
@@ -331,8 +341,9 @@
   .turn-indicator { font-size: 0.65rem; padding: 2px 6px; }
 
   .start-content {
-    max-height: calc(var(--app-height, 100dvh) - 48px);
+    max-height: max(280px, calc(var(--app-height, 100dvh) - 48px));
     overflow-y: auto;
+    flex-shrink: 0;
   }
 
   .gostop-buttons {
