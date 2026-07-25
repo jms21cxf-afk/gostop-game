@@ -34,16 +34,20 @@ export function calculateScore(captured) {
     }
   }
 
-  // 고도리 (새 3장: 2,4,8,12월 중 3장)
-  const birds = scored.filter((c) => c.isBird);
-  if (birds.length >= 3) {
+  // 고도리 (2,4,8월 엽 — 2월 매화광 포함)
+  const godoriMonths = [2, 4, 8];
+  const hasGodori = godoriMonths.every((m) =>
+    scored.some((c) => c.month === m && (c.type === 'yul' || c.isBird)),
+  );
+  if (hasGodori) {
     yaku.push({ name: '고도리', points: 5 });
     total += 5;
   }
 
-  // 홍단 (6,7,10월)
-  const hongdan = ttis.filter((t) => t.ribbon === 'hong');
-  if (hongdan.length >= 3) {
+  // 홍단 (1,2,3월 띠)
+  const hongdanMonths = [1, 2, 3];
+  const hasHongdan = hongdanMonths.every((m) => ttis.some((t) => t.month === m));
+  if (hasHongdan) {
     yaku.push({ name: '홍단', points: 3 });
     total += 3;
   }
@@ -56,9 +60,10 @@ export function calculateScore(captured) {
     total += 3;
   }
 
-  // 초단 (4,5,6월)
-  const chodan = ttis.filter((t) => t.ribbon === 'cho');
-  if (chodan.length >= 3) {
+  // 초단 (4,5,7월)
+  const chodanMonths = [4, 5, 7];
+  const hasChodan = chodanMonths.every((m) => ttis.some((t) => t.month === m));
+  if (hasChodan) {
     yaku.push({ name: '초단', points: 3 });
     total += 3;
   }

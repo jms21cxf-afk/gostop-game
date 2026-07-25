@@ -37,19 +37,19 @@ export function resolveTypeFromImage(imageIndex) {
 const CARD_DEFS = [
   // 1월 Hikari, Tanzaku, Kasu, Kasu
   { month: 1, label: '송학', isRain: false, imageIndex: 0 },
-  { month: 1, label: '띠', ribbon: 'plain', imageIndex: 1 },
+  { month: 1, label: '홍단', ribbon: 'hong', imageIndex: 1 },
   { month: 1, label: '피', piValue: 1, imageIndex: 2 },
   { month: 1, label: '피', piValue: 1, imageIndex: 3 },
 
   // 2월 Tane(광), Tanzaku, Kasu, Kasu
   { month: 2, label: '매화', isBird: true, imageIndex: 4 },
-  { month: 2, label: '띠', ribbon: 'plain', imageIndex: 5 },
+  { month: 2, label: '홍단', ribbon: 'hong', imageIndex: 5 },
   { month: 2, label: '피', piValue: 1, imageIndex: 6 },
   { month: 2, label: '피', piValue: 1, imageIndex: 7 },
 
   // 3월
   { month: 3, label: '벚꽃', isRain: false, imageIndex: 8 },
-  { month: 3, label: '띠', ribbon: 'plain', imageIndex: 9 },
+  { month: 3, label: '홍단', ribbon: 'hong', imageIndex: 9 },
   { month: 3, label: '피', piValue: 1, imageIndex: 10 },
   { month: 3, label: '피', piValue: 1, imageIndex: 11 },
 
@@ -67,13 +67,13 @@ const CARD_DEFS = [
 
   // 6월
   { month: 6, label: '나비', imageIndex: 20 },
-  { month: 6, label: '홍단', ribbon: 'hong', imageIndex: 21 },
+  { month: 6, label: '띠', ribbon: 'hong', imageIndex: 21 },
   { month: 6, label: '피', piValue: 1, imageIndex: 22 },
   { month: 6, label: '피', piValue: 1, imageIndex: 23 },
 
   // 7월
   { month: 7, label: '멧돼지', imageIndex: 24 },
-  { month: 7, label: '홍단', ribbon: 'hong', imageIndex: 25 },
+  { month: 7, label: '초단', ribbon: 'cho', imageIndex: 25 },
   { month: 7, label: '피', piValue: 1, imageIndex: 26 },
   { month: 7, label: '피', piValue: 1, imageIndex: 27 },
 

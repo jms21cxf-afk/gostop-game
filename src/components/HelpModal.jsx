@@ -72,10 +72,10 @@ export default function HelpModal({ onClose }) {
           <h3>점수 (족보)</h3>
           <ul>
             <li><strong>5광</strong>: 15점 | <strong>4광</strong>: 4점 | <strong>3광</strong>: 3점</li>
-            <li><strong>고도리</strong> (새 3장): 5점</li>
-            <li><strong>홍단</strong> (6,7,10월 띠): 3점</li>
+            <li><strong>고도리</strong> (2,4,8월 엽 3장): 5점</li>
+            <li><strong>홍단</strong> (1,2,3월 띠 3장): 3점</li>
             <li><strong>청단</strong> (6,9,10월 띠 3장): 3점</li>
-            <li><strong>초단</strong> (4,5,6월 띠): 3점</li>
+            <li><strong>초단</strong> (4,5,7월 띠): 3점</li>
             <li><strong>엽</strong> 5장 이상: 장당 1점</li>
             <li><strong>띠</strong> 5장 이상: 장당 1점</li>
             <li><strong>피</strong> 10장 이상: 장당 1점 (9월 국화·11월 쌍피는 <strong>2장분</strong>)</li>
