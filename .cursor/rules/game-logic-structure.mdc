@@ -1,0 +1,35 @@
+---
+description: 고스톱 로직 분리·파일 역할·수정 범위
+globs: src/logic/**/*,src/components/GameBoard.jsx
+alwaysApply: false
+---
+
+# 고스톱 로직 구조
+
+## 파일 역할 (어디에 뭐가 있는지)
+
+| 파일 | 역할 |
+|------|------|
+| `logic/turnFlow.js` | 턴 넘기기·덱 뒤집기 |
+| `logic/goStop.js` | 고/스톱 선택·라운드·게임 정산 |
+| `logic/cardPlay.js` | 바닥 매칭·뻥·바닥에 놓기 |
+| `logic/dualCapture.js` | 9월 국화 엽/피 선택 (쌍피) |
+| `logic/gameEngine.js` | 턴 흐름 허브: 패 내기, 매칭, 뻥, 덱 뒤집기, 고/스톱, 라운드 |
+| `logic/scoring.js` | 먹은 패 점수·고 가능 여부 |
+| `logic/deck.js` | 셔플·카드 배분 |
+| `logic/dealChecks.js` | 초기 딜 검증 (4장 등) |
+| `logic/ai.js` | AI 카드·엽/피 선택 |
+| `data/cards.js` | 카드 데이터·쌍피·정렬 |
+| `components/GameBoard.jsx` | state ↔ UI 연결, AI/애니 잠금 |
+| `components/HelpModal.jsx` | **플레이어용** 규칙 설명 (코드 지도 아님) |
+
+## 새 기능·수정 시
+
+- `gameEngine.js`는 **한 파일 200줄 넘기지 않기** — 규칙별로 `logic/`에 분리
+- 한 번에 **규칙 하나만** (예: 뻥만, 고/스톱만)
+- CSS 수정 시 `.card` / `.card-img` / 크기·`object-fit` **같이** 확인
+- 로직 수정 시 해당 함수에 **한국어 주석** 추가·갱신
+
+## gameEngine 호출 흐름 (참고)
+
+`playCardFromHand` → `handleCardPlay` → (뻥/매칭/바닥) → `continueAfterCapture` → `flipStockCard` 또는 `checkGoStop` → `endTurn`

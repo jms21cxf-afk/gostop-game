@@ -1,16 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  PHASE,
-  startNewGame,
-  playCardFromHand,
-  chooseMatch,
-  chooseCaptureType,
-  handleGo,
-  handleStop,
-} from '../logic/gameEngine';
-import { aiChooseCard, aiChooseMatch, aiChooseGoStop, isAiTurn } from '../logic/ai';
-import { saveGame, loadGame, clearSavedGame, hasSavedGame, saveSettings, loadSettings } from '../storage/gameStorage';
-import { playSound, unlockAudio } from '../utils/sounds';
+import { PHASE } from '../logic/gameEngine';
+import { isAiTurn } from '../logic/ai';
+import { playSound } from '../utils/sounds';
+import { useGostopGameState } from '../hooks/useGostopGameState';
+import { useAiTurn } from '../hooks/useAiTurn';
+import { useGameModals } from '../hooks/useGameModals';
 import StartScreen from './StartScreen';
 import PlayerHand from './PlayerHand';
 import TableArea from './TableArea';
@@ -23,8 +17,6 @@ import ScoreBar from './ScoreBar';
 import FlyingCardLayer from './FlyingCardLayer';
 import CapturedStrip from './CapturedStrip';
 
-const AI_THINK_MS = 1400;
-const AI_PREVIEW_MS = 1200;
 const TURN_REST_MS = 2400;
 const ANIM_GAP_MS = 950;
 const CAPTURE_LAND_MS = 800;
@@ -44,9 +36,7 @@ function getPrehiddenIds(events) {
     if (!ev.cards?.length) continue;
     if (ev.to === 'captured') captured.push(...ev.cards.map((c) => c.id));
   }
-  return {
-    captured: [...new Set(captured)],
-  };
+  return { captured: [...new Set(captured)] };
 }
 
 function playEventSound(event) {
@@ -121,14 +111,13 @@ function getDisplayMessage({
 }
 
 export default function GameBoard() {
-  const [gameState, setGameState] = useState(null);
-  const [settings, setSettings] = useState(loadSettings());
-  const [showHelp, setShowHelp] = useState(false);
-  const [saved, setSaved] = useState(hasSavedGame());
-  const [aiThinking, setAiThinking] = useState(false);
-  const [aiPreviewCard, setAiPreviewCard] = useState(null);
-  const [aiTableHighlight, setAiTableHighlight] = useState(null);
-  const [statusMessage, setStatusMessage] = useState('');
+  const processedSeqRef = useRef(0);
+  const animQueueRef = useRef([]);
+  const animEventRef = useRef(null);
+  const turnRestingRef = useRef(false);
+  const restTimerRef = useRef(null);
+  const gapTimerRef = useRef(null);
+
   const [animEvent, setAnimEvent] = useState(null);
   const [animQueue, setAnimQueue] = useState([]);
   const [hiddenCapturedIds, setHiddenCapturedIds] = useState([]);
@@ -136,27 +125,110 @@ export default function GameBoard() {
   const [pileActive, setPileActive] = useState(false);
   const [turnResting, setTurnResting] = useState(false);
 
-  const processedSeqRef = useRef(0);
-  const animQueueRef = useRef([]);
-  const animEventRef = useRef(null);
-  const gameStateRef = useRef(null);
-  const aiRunningRef = useRef(false);
-  const restTimerRef = useRef(null);
-  const gapTimerRef = useRef(null);
-  const aiTimerRef = useRef(null);
-  const turnRestingRef = useRef(false);
-
-  gameStateRef.current = gameState;
   animQueueRef.current = animQueue;
   animEventRef.current = animEvent;
   turnRestingRef.current = turnResting;
 
-  // state.eventQueue에 아직 animQueue로 옮기기 전 이벤트가 있으면 AI가 먼저 도는 레이스 방지
-  const hasPendingEvents = (gameState?.eventQueue?.some(
-    (e) => e.seq > processedSeqRef.current,
-  )) ?? false;
+  const resetAnimationSession = useCallback(() => {
+    setAnimQueue([]);
+    animQueueRef.current = [];
+    setAnimEvent(null);
+    setTurnResting(false);
+    setHiddenCapturedIds([]);
+    setLandingCapturedIds([]);
+  }, []);
+
+  const {
+    gameState,
+    setGameState,
+    gameStateRef,
+    settings,
+    saved,
+    handleStart,
+    handleContinue,
+    handleCardClick: playCardFromHandClick,
+    handleTableClick: chooseMatchClick,
+    handleNewGame,
+  } = useGostopGameState({
+    processedSeqRef,
+    onSessionReset: resetAnimationSession,
+  });
+
+  const hasPendingEvents =
+    (gameState?.eventQueue?.some((e) => e.seq > processedSeqRef.current)) ?? false;
   const isBusy = animQueue.length > 0 || animEvent !== null || hasPendingEvents;
   const isLocked = isBusy || turnResting;
+
+  const {
+    aiThinking,
+    aiPreviewCard,
+    aiTableHighlight,
+    statusMessage,
+    resetAiState,
+    aiRunningRef,
+  } = useAiTurn({
+    gameState,
+    setGameState,
+    gameStateRef,
+    processedSeqRef,
+    isLocked,
+    hasPendingEvents,
+    animQueueRef,
+    animEventRef,
+    turnRestingRef,
+  });
+
+  const {
+    showHelp,
+    setShowHelp,
+    isChoosingCapture,
+    isPlayerGoStop,
+    isGameEnd,
+    handleChooseCaptureType,
+    handleGo,
+    handleStop,
+  } = useGameModals({ gameState, setGameState, resetAiState });
+
+  const resetSession = useCallback(() => {
+    resetAnimationSession();
+    resetAiState();
+    aiRunningRef.current = false;
+  }, [resetAnimationSession, resetAiState, aiRunningRef]);
+
+  const onStart = useCallback(
+    (playerName, target, difficulty) => {
+      handleStart(playerName, target, difficulty);
+      resetSession();
+    },
+    [handleStart, resetSession],
+  );
+
+  const onContinue = useCallback(() => {
+    handleContinue();
+    resetAiState();
+  }, [handleContinue, resetAiState]);
+
+  const onNewGame = useCallback(() => {
+    handleNewGame();
+    resetSession();
+  }, [handleNewGame, resetSession]);
+
+  const onCardClick = useCallback(
+    (card) => {
+      if (isLocked) return;
+      resetAiState();
+      playCardFromHandClick(card);
+    },
+    [isLocked, resetAiState, playCardFromHandClick],
+  );
+
+  const onTableClick = useCallback(
+    (card) => {
+      if (isLocked) return;
+      chooseMatchClick(card);
+    },
+    [isLocked, chooseMatchClick],
+  );
 
   const queuedPrehide = getQueuedPrehideEvents(
     gameState,
@@ -167,14 +239,6 @@ export default function GameBoard() {
   const prehidden = getPrehiddenIds(queuedPrehide);
   const displayHiddenCaptured = [...new Set([...hiddenCapturedIds, ...prehidden.captured])];
 
-  useEffect(() => {
-    if (gameState && gameState.phase !== PHASE.GAME_END) {
-      const { eventQueue, lastEvent, ...toSave } = gameState;
-      saveGame(toSave);
-      setSaved(true);
-    }
-  }, [gameState]);
-
   const startNextAnimation = useCallback(() => {
     if (animEventRef.current || turnRestingRef.current) return;
     const queue = animQueueRef.current;
@@ -183,7 +247,6 @@ export default function GameBoard() {
     const next = queue[0];
     playEventSound(next);
 
-    // go/stop 등 카드 없는 이벤트는 애니 없이 바로 처리 (안 하면 AI 턴 영구 정지)
     if (!next.cards?.length) {
       processedSeqRef.current = next.seq;
       setAnimQueue((prev) => {
@@ -270,166 +333,20 @@ export default function GameBoard() {
     startNextAnimation();
   }, [animQueue.length, animEvent, turnResting, startNextAnimation]);
 
-  const resetAiState = useCallback(() => {
-    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
-    aiTimerRef.current = null;
-    aiRunningRef.current = false;
-    setAiThinking(false);
-    setAiPreviewCard(null);
-    setAiTableHighlight(null);
-    setStatusMessage('');
-  }, []);
-
-  const runAiTurn = useCallback(() => {
-    if (aiRunningRef.current) return;
-    const state = gameStateRef.current;
-    if (!state || !isAiTurn(state) || turnRestingRef.current) return;
-    if (animQueueRef.current.length || animEventRef.current) return;
-    if (state.eventQueue?.some((e) => e.seq > processedSeqRef.current)) return;
-
-    const aiPhases = [PHASE.PLAYING, PHASE.CHOOSE_MATCH, PHASE.GO_STOP];
-    if (!aiPhases.includes(state.phase)) return;
-
-    aiRunningRef.current = true;
-    setAiThinking(true);
-
-    aiTimerRef.current = setTimeout(() => {
-      const cur = gameStateRef.current;
-      if (!cur || !isAiTurn(cur)) {
-        aiRunningRef.current = false;
-        setAiThinking(false);
-        return;
-      }
-
-      if (cur.phase === PHASE.PLAYING) {
-        const card = aiChooseCard(cur);
-        if (!card) {
-          aiRunningRef.current = false;
-          setAiThinking(false);
-          return;
-        }
-        setAiPreviewCard(card);
-        setStatusMessage(`🤖 컴퓨터 ① ${card.month}월 카드를 냅니다...`);
-        setAiThinking(false);
-
-        aiTimerRef.current = setTimeout(() => {
-          setAiPreviewCard(null);
-          setStatusMessage('');
-          setGameState((s) => (s ? playCardFromHand(s, card.id) : s));
-          aiRunningRef.current = false;
-        }, AI_PREVIEW_MS);
-        return;
-      }
-
-      if (cur.phase === PHASE.CHOOSE_MATCH) {
-        const match = aiChooseMatch(cur);
-        setAiTableHighlight(match.id);
-        setStatusMessage(`🤖 컴퓨터가 ${match.month}월과 맞춥니다...`);
-        setAiThinking(false);
-
-        aiTimerRef.current = setTimeout(() => {
-          setAiTableHighlight(null);
-          setStatusMessage('');
-          setGameState((s) => (s ? chooseMatch(s, match.id) : s));
-          aiRunningRef.current = false;
-        }, AI_PREVIEW_MS);
-        return;
-      }
-
-      if (cur.phase === PHASE.GO_STOP) {
-        const choice = aiChooseGoStop(cur);
-        playSound(choice === 'go' ? 'go' : 'stop');
-        setGameState((s) => {
-          if (!s) return s;
-          return choice === 'go' ? handleGo(s) : handleStop(s);
-        });
-        aiRunningRef.current = false;
-        setAiThinking(false);
-      }
-    }, AI_THINK_MS);
-  }, []);
-
-  useEffect(() => {
-    if (isLocked || aiRunningRef.current) return;
-    const state = gameStateRef.current;
-    if (state && isAiTurn(state)) runAiTurn();
-  }, [isLocked, hasPendingEvents, gameState?.currentPlayer, gameState?.phase, gameState?.players?.[1]?.hand?.length, runAiTurn]);
-
-  useEffect(() => {
-    const state = gameStateRef.current;
-    if (state && !isAiTurn(state)) {
-      resetAiState();
-    }
-  }, [gameState?.currentPlayer, resetAiState]);
-
-  useEffect(() => () => {
-    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
-    if (restTimerRef.current) clearTimeout(restTimerRef.current);
-    if (gapTimerRef.current) clearTimeout(gapTimerRef.current);
-  }, []);
-
-  const handleStart = useCallback((playerName, target, difficulty) => {
-    unlockAudio();
-    clearSavedGame();
-    saveSettings({ playerName, targetScore: target, difficulty });
-    setSettings({ playerName, targetScore: target, difficulty });
-    setGameState(startNewGame(playerName, target, difficulty));
-    setSaved(false);
-    processedSeqRef.current = 0;
-    setAnimQueue([]);
-    animQueueRef.current = [];
-    setAnimEvent(null);
-    setTurnResting(false);
-    setHiddenCapturedIds([]);
-    aiRunningRef.current = false;
-  }, []);
-
-  const handleContinue = useCallback(() => {
-    const savedState = loadGame();
-    if (savedState?.players?.[0] && savedState?.players?.[1]) {
-      setGameState({
-        ...savedState,
-        eventQueue: [],
-        lastEvent: null,
-        players: savedState.players.map((p) => ({
-          ...p,
-          hand: p.hand || [],
-          captured: p.captured || [],
-        })),
-      });
-      processedSeqRef.current = savedState.eventSeq || 0;
-      setAnimQueue([]);
-      animQueueRef.current = [];
-      setAnimEvent(null);
-      setTurnResting(false);
-    }
-  }, []);
-
-  const handleCardClick = useCallback((card) => {
-    if (isLocked) return;
-    resetAiState();
-    setGameState((prev) => playCardFromHand(prev, card.id));
-  }, [isLocked, resetAiState]);
-
-  const handleTableClick = useCallback((card) => {
-    if (isLocked) return;
-    setGameState((prev) => chooseMatch(prev, card.id));
-  }, [isLocked]);
-
-  const handleNewGame = useCallback(() => {
-    clearSavedGame();
-    setGameState(null);
-    setSaved(false);
-    processedSeqRef.current = 0;
-    aiRunningRef.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      if (restTimerRef.current) clearTimeout(restTimerRef.current);
+      if (gapTimerRef.current) clearTimeout(gapTimerRef.current);
+    },
+    [],
+  );
 
   if (!gameState) {
     return (
       <StartScreen
         settings={settings}
-        onStart={handleStart}
-        onContinue={handleContinue}
+        onStart={onStart}
+        onContinue={onContinue}
         hasSave={saved}
       />
     );
@@ -437,8 +354,6 @@ export default function GameBoard() {
 
   const { players, currentPlayer, table, stock, phase, round, targetScore } = gameState;
   const isChoosing = phase === PHASE.CHOOSE_MATCH && currentPlayer === 0;
-  const isChoosingCapture = phase === PHASE.CHOOSE_CAPTURE_TYPE && currentPlayer === 0;
-  const isPlayerGoStop = phase === PHASE.GO_STOP && currentPlayer === 0;
 
   const displayMessage = getDisplayMessage({
     statusMessage,
@@ -460,14 +375,27 @@ export default function GameBoard() {
           <h1 className="header-title">🎴 고스톱</h1>
           <div className="header-actions">
             <MuteButton />
-            <button className="btn btn-small" onClick={() => setShowHelp(true)}>❓ 도움말</button>
-            <button className="btn btn-small btn-danger" onClick={handleNewGame}>나가기</button>
+            <button type="button" className="btn btn-small" onClick={() => setShowHelp(true)}>
+              ❓ 도움말
+            </button>
+            <button type="button" className="btn btn-small btn-danger" onClick={onNewGame}>
+              나가기
+            </button>
           </div>
         </header>
 
-        <ScoreBar players={players} stockCount={stock.length} round={round} targetScore={targetScore} />
+        <ScoreBar
+          players={players}
+          stockCount={stock.length}
+          round={round}
+          targetScore={targetScore}
+        />
 
-        <div className={`message-bar ${isChoosing || isChoosingCapture ? 'message-bar-hint' : ''} ${turnResting ? 'message-bar-rest' : ''}`} role="status" aria-live="polite">
+        <div
+          className={`message-bar ${isChoosing || isChoosingCapture ? 'message-bar-hint' : ''} ${turnResting ? 'message-bar-rest' : ''}`}
+          role="status"
+          aria-live="polite"
+        >
           {displayMessage}
         </div>
       </div>
@@ -501,7 +429,7 @@ export default function GameBoard() {
 
           <TableArea
             cards={table}
-            onCardClick={handleTableClick}
+            onCardClick={onTableClick}
             selectable={isChoosing}
             stockCount={stock.length}
             highlightCardId={aiTableHighlight}
@@ -518,7 +446,7 @@ export default function GameBoard() {
 
           <PlayerHand
             cards={players[0].hand}
-            onCardClick={handleCardClick}
+            onCardClick={onCardClick}
             playerName={players[0].name}
             position="bottom"
             isActive={currentPlayer === 0 && phase === PHASE.PLAYING && !isLocked}
@@ -538,10 +466,7 @@ export default function GameBoard() {
       {isChoosingCapture && (
         <DualCaptureModal
           card={gameState.pendingDualCard}
-          onChoose={(asType) => {
-            playSound('match');
-            setGameState((prev) => chooseCaptureType(prev, asType));
-          }}
+          onChoose={handleChooseCaptureType}
         />
       )}
 
@@ -550,27 +475,17 @@ export default function GameBoard() {
           playerName={players[0].name}
           score={players[0].score}
           goCount={players[0].goCount}
-          onGo={() => {
-            unlockAudio();
-            playSound('go');
-            resetAiState();
-            setGameState((prev) => handleGo(prev));
-          }}
-          onStop={() => {
-            unlockAudio();
-            playSound('stop');
-            resetAiState();
-            setGameState((prev) => handleStop(prev));
-          }}
+          onGo={handleGo}
+          onStop={handleStop}
         />
       )}
 
-      {phase === PHASE.GAME_END && (
+      {isGameEnd && (
         <GameEndModal
           players={players}
           winnerName={gameState.winner}
           message={gameState.message}
-          onNewGame={handleNewGame}
+          onNewGame={onNewGame}
         />
       )}
 

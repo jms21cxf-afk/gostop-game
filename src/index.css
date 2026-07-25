@@ -1527,20 +1527,21 @@ button {
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
-    max-height: clamp(56px, 12.5vw, 70px);
     aspect-ratio: 103 / 168;
     max-width: 100%;
     justify-self: center;
     background: transparent;
     border: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-    overflow: hidden;
+    overflow: visible;
   }
 
+  /* 화투 전체 표시 — cover/scale 제거 (잘림 방지) */
   .player-hand.player-bottom .hand-cards .card-xl .card-img {
-    object-fit: cover;
-    transform: scale(1.2);
-    transform-origin: center center;
+    object-fit: contain;
+    transform: none;
+    width: 100%;
+    height: 100%;
   }
 
   .hand-side-info {
@@ -1720,6 +1721,12 @@ button {
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
+    aspect-ratio: 103 / 168;
+  }
+
+  .player-hand.player-bottom .hand-cards .card-xl .card-img {
+    object-fit: contain;
+    transform: none;
   }
 
   .card-table {
@@ -1777,6 +1784,17 @@ button {
   .card-xl {
     width: 48px;
     height: 74px;
+  }
+
+  .player-hand.player-bottom .hand-cards .card-xl {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 103 / 168;
+  }
+
+  .player-hand.player-bottom .hand-cards .card-xl .card-img {
+    object-fit: contain;
+    transform: none;
   }
 
   .message-bar {

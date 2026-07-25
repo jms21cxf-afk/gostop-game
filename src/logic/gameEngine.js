@@ -1,23 +1,46 @@
+/**
+ * gameEngine.js — 고스톱 턴·규칙 허브
+ *
+ * 【역할】 패 내기 → 바닥 매칭/뻥 → 덱 뒤집기 → 9월 엽·피 → 고/스톱 → 턴/라운드
+ * 【다른 파일】 scoring.js, cardPlay.js, dualCapture.js, goStop.js, turnFlow.js, dealChecks, ai.js
+ * 【UI 연결】 GameBoard.jsx 가 아래 export 함수들을 호출함
+ *
+ * 【한 턴 흐름】
+ *   playCardFromHand (① 패)
+ *     → handleCardPlay → processMatch | processPpung | processNoMatch | CHOOSE_MATCH
+ *     → continueAfterCapture → (9월 선택?) → flipStockCard (② 덱)
+ *       → handleCardPlay (같은 분기)
+ *       → continueAfterCapture → checkGoStop → endTurn
+ *
+ * 【모듈】 dualCapture · cardPlay · goStop · turnFlow — gameEngine 은 연결(orchestration)만
+ */
 import { dealUntilValid } from './dealChecks';
-import { calculateScore, canGoStop } from './scoring';
-import { isDualYulPiCard, applyCaptureType } from '../data/cards';
-import { aiChooseCaptureType } from './ai';
+import { calculateScore } from './scoring';
+import { promptDualChoiceIfNeeded, applyCaptureTypeChoice } from './dualCapture';
+import { handleCardPlay, processMatch } from './cardPlay';
+import { checkGoStop, endRound, applyGo, applyStop } from './goStop';
+import { endTurn as endTurnFlow, flipStockCard as flipStockCardFlow } from './turnFlow';
 
+/** 게임 진행 단계 (UI가 phase 보고 화면·입력 잠금) */
 export const PHASE = {
   START: 'start',
   PLAYING: 'playing',
-  CHOOSE_MATCH: 'choose_match',
-  CHOOSE_CAPTURE_TYPE: 'choose_capture_type',
+  CHOOSE_MATCH: 'choose_match',           // 바닥 2장 중 선택
+  CHOOSE_CAPTURE_TYPE: 'choose_capture_type', // 9월 국화 엽/피
   GO_STOP: 'go_stop',
   ROUND_END: 'round_end',
   GAME_END: 'game_end',
 };
 
+/** 카드 처리 후 다음에 할 일 (덱 뒤집기 vs 턴 종료) */
 export const RESUME_AFTER = {
   FLIP_STOCK: 'flip_stock',
   END_TURN: 'end_turn',
 };
 
+// ─── 애니메이션용 이벤트 큐 ─────────────────────────────────────
+
+/** FlyingCardLayer 애니메이션용 — state.eventQueue 에 쌓음 */
 function emitEvent(state, event) {
   const seq = (state.eventSeq || 0) + 1;
   const newEvent = { ...event, seq };
@@ -29,6 +52,9 @@ function emitEvent(state, event) {
   };
 }
 
+// ─── 게임 시작 ─────────────────────────────────────────────────
+
+/** 첫 판 state 생성 (유효한 딜까지 dealChecks 에서 재시도) */
 export function createInitialState(playerName = '나', aiName = '컴퓨터') {
   const players = [
     { name: playerName, hand: [], captured: [], score: 0, totalScore: 0, goCount: 0, isAi: false },
@@ -65,70 +91,93 @@ export function createInitialState(playerName = '나', aiName = '컴퓨터') {
   };
 }
 
-function findMatches(table, card) {
-  return table.filter((t) => t.month === card.month);
+function updatePlayerScore(player) {
+  const { total } = calculateScore(player.captured);
+  return { ...player, score: total };
 }
 
-function removeFromTable(table, cards) {
-  const ids = new Set(cards.map((c) => c.id));
-  return table.filter((t) => !ids.has(t.id));
-}
-
-function captureCards(player, cards) {
-  const normalized = cards.map((c) =>
-    isDualYulPiCard(c) ? { ...c, dualPending: true } : c,
-  );
+/** cardPlay.js 에 주입하는 이벤트·점수·phase */
+function getCardPlayDeps() {
   return {
-    ...player,
-    captured: [...player.captured, ...normalized],
+    emitEvent,
+    updatePlayerScore,
+    chooseMatchPhase: PHASE.CHOOSE_MATCH,
   };
 }
 
-function getPendingDualCards(player) {
-  return (player.captured || []).filter((c) => c.dualPending && isDualYulPiCard(c));
-}
-
-function resolveDualForAi(state, playerIdx, resumeAfter) {
-  let next = state;
-  let pending = getPendingDualCards(next.players[playerIdx]);
-  while (pending.length > 0) {
-    const card = pending[0];
-    const player = next.players[playerIdx];
-    const asType = aiChooseCaptureType(player, card);
-    const newCaptured = player.captured.map((c) =>
-      c.id === card.id ? applyCaptureType(c, asType) : c,
-    );
-    const updated = updatePlayerScore({ ...player, captured: newCaptured });
-    next = {
-      ...next,
-      players: next.players.map((p, i) => (i === playerIdx ? updated : p)),
-    };
-    pending = getPendingDualCards(updated);
-  }
-  return continueAfterCapture(next, playerIdx, resumeAfter, true);
-}
-
-function promptDualChoiceIfNeeded(state, playerIdx, resumeAfter) {
-  const player = state.players[playerIdx];
-  const pending = getPendingDualCards(player);
-  if (pending.length === 0) return null;
-
-  if (player.isAi) {
-    return resolveDualForAi(state, playerIdx, resumeAfter);
-  }
-
+/** dualCapture.js 에 주입하는 phase·턴 연결 */
+function getDualCaptureDeps() {
   return {
-    ...state,
-    phase: PHASE.CHOOSE_CAPTURE_TYPE,
-    pendingDualCard: pending[0],
-    dualResumeAfter: resumeAfter,
-    message: '9월 국화는 엽 또는 피 중 어디에 둘까요?',
+    chooseCapturePhase: PHASE.CHOOSE_CAPTURE_TYPE,
+    playingPhase: PHASE.PLAYING,
+    updatePlayerScore,
+    continueAfterCapture,
   };
 }
 
+/** goStop.endRound 에 필요한 phase (endTurn 주입 불필요) */
+function getRoundSettlementDeps() {
+  return {
+    gameEndPhase: PHASE.GAME_END,
+    playingPhase: PHASE.PLAYING,
+  };
+}
+
+/** turnFlow.endTurn 에 주입 */
+function getEndTurnDeps() {
+  return {
+    playingPhase: PHASE.PLAYING,
+    endRound,
+    goStopDeps: getRoundSettlementDeps(),
+  };
+}
+
+function endTurn(state) {
+  return endTurnFlow(state, getEndTurnDeps());
+}
+
+/** turnFlow.flipStockCard 에 주입 */
+function getFlipStockDeps() {
+  return {
+    endTurn: endTurnFlow,
+    endTurnDeps: getEndTurnDeps(),
+    handleCardPlay,
+    cardPlayDeps: getCardPlayDeps(),
+    continueAfterCapture,
+    resumeEndTurn: RESUME_AFTER.END_TURN,
+    chooseMatchPhase: PHASE.CHOOSE_MATCH,
+  };
+}
+
+function flipStockCard(state) {
+  return flipStockCardFlow(state, getFlipStockDeps());
+}
+
+/** goStop.js 에 주입하는 phase·턴·이벤트 */
+function getGoStopDeps() {
+  return {
+    goStopPhase: PHASE.GO_STOP,
+    gameEndPhase: PHASE.GAME_END,
+    playingPhase: PHASE.PLAYING,
+    emitEvent,
+    endTurn,
+  };
+}
+
+// ─── 카드 처리 후 연결 (허브) ──────────────────────────────────
+
+/**
+ * 먹기/뻥 직후 공통 후처리
+ * 1) 9월 엽·피?  2) 덱 뒤집기?  3) 고/스톱·턴 종료?
+ */
 function continueAfterCapture(state, playerIdx, resumeAfter, skipDualCheck = false) {
   if (!skipDualCheck) {
-    const prompted = promptDualChoiceIfNeeded(state, playerIdx, resumeAfter);
+    const prompted = promptDualChoiceIfNeeded(
+      state,
+      playerIdx,
+      resumeAfter,
+      getDualCaptureDeps(),
+    );
     if (prompted) return prompted;
   }
 
@@ -137,7 +186,7 @@ function continueAfterCapture(state, playerIdx, resumeAfter, skipDualCheck = fal
   }
 
   if (resumeAfter === RESUME_AFTER.END_TURN) {
-    let newState = checkGoStop(state, playerIdx);
+    let newState = checkGoStop(state, playerIdx, getGoStopDeps());
     if (newState.phase === PHASE.GO_STOP) return newState;
     return endTurn(newState);
   }
@@ -145,195 +194,9 @@ function continueAfterCapture(state, playerIdx, resumeAfter, skipDualCheck = fal
   return state;
 }
 
-function updatePlayerScore(player) {
-  const { total } = calculateScore(player.captured);
-  return { ...player, score: total };
-}
+// ─── UI가 호출하는 export (공개 API) ───────────────────────────
 
-function processMatch(state, playerIdx, playedCard, tableCard, isFromStock = false) {
-  const player = state.players[playerIdx];
-  const cardsToCapture = [playedCard, tableCard];
-  const newTable = removeFromTable(state.table, [tableCard]);
-
-  let newPlayer = captureCards(player, cardsToCapture);
-  newPlayer = updatePlayerScore(newPlayer);
-
-  const source = isFromStock ? '덱' : '패';
-  const action = `${state.players[playerIdx].name}님이 ${playedCard.month}월 카드를 냈습니다 (${source}).`;
-
-  return emitEvent({
-    ...state,
-    players: state.players.map((p, i) => (i === playerIdx ? newPlayer : p)),
-    table: newTable,
-    message: action,
-    lastAction: action,
-  }, {
-    type: isFromStock ? 'flip_stock' : 'play_hand',
-    playerIdx,
-    cards: cardsToCapture,
-    from: isFromStock ? 'stock' : 'hand',
-    to: 'captured',
-    faceDown: isFromStock,
-  });
-}
-
-function processNoMatch(state, playerIdx, playedCard, isFromStock = false) {
-  const source = isFromStock ? '덱' : '패';
-  const action = `${playedCard.month}월 카드가 바닥에 놓였습니다 (${source}).`;
-
-  return emitEvent({
-    ...state,
-    table: [...state.table, playedCard],
-    message: action,
-    lastAction: action,
-  }, {
-    type: isFromStock ? 'flip_stock' : 'play_hand',
-    playerIdx,
-    cards: [playedCard],
-    from: isFromStock ? 'stock' : 'hand',
-    to: 'table',
-    faceDown: isFromStock,
-  });
-}
-
-function processPpung(state, playerIdx, playedCard, matches, isFromStock = false) {
-  const player = state.players[playerIdx];
-  const allCards = [playedCard, ...matches];
-  const newTable = removeFromTable(state.table, matches);
-
-  let newPlayer = captureCards(player, allCards);
-  newPlayer = updatePlayerScore(newPlayer);
-
-  const source = isFromStock ? '덱' : '패';
-  const action = `뻥! ${state.players[playerIdx].name}님이 ${playedCard.month}월 4장을 모두 냈습니다! (${source})`;
-
-  return emitEvent({
-    ...state,
-    players: state.players.map((p, i) => (i === playerIdx ? newPlayer : p)),
-    table: newTable,
-    message: action,
-    lastAction: action,
-    ppungBonus: state.ppungBonus + 1,
-  }, {
-    type: 'ppung',
-    playerIdx,
-    cards: allCards,
-    from: isFromStock ? 'stock' : 'hand',
-    to: 'captured',
-    faceDown: isFromStock,
-  });
-}
-
-function handleCardPlay(state, playerIdx, card, isFromStock = false) {
-  const matches = findMatches(state.table, card);
-
-  if (matches.length === 3) {
-    return processPpung(state, playerIdx, card, matches, isFromStock);
-  }
-
-  if (matches.length === 1) {
-    return processMatch(state, playerIdx, card, matches[0], isFromStock);
-  }
-
-  if (matches.length === 2) {
-    return {
-      ...state,
-      phase: PHASE.CHOOSE_MATCH,
-      pendingCard: card,
-      matchCandidates: matches,
-      matchSource: isFromStock ? 'stock' : 'hand',
-      message: `바닥에 ${card.month}월 카드가 2장 있어요! 맞출 카드를 터치해서 고르세요.`,
-    };
-  }
-
-  return processNoMatch(state, playerIdx, card, isFromStock);
-}
-
-function checkGoStop(state, playerIdx) {
-  const player = state.players[playerIdx];
-  if (canGoStop(player.score)) {
-    return {
-      ...state,
-      phase: PHASE.GO_STOP,
-      message: `${player.name}님, ${player.score}점입니다! 고 할까요, 스톱 할까요?`,
-    };
-  }
-  return state;
-}
-
-function endTurn(state) {
-  const nextPlayer = state.currentPlayer === 0 ? 1 : 0;
-  const nextName = state.players[nextPlayer].name;
-
-  if (state.stock.length === 0) {
-    return endRound(state);
-  }
-
-  const stepMsg = nextPlayer === 0
-    ? `${nextName}님 차례 · ① 패에서 카드 1장을 고르세요`
-    : `🤖 ${nextName} 차례입니다...`;
-
-  return {
-    ...state,
-    currentPlayer: nextPlayer,
-    phase: PHASE.PLAYING,
-    message: stepMsg,
-    pendingCard: null,
-    matchCandidates: [],
-    matchSource: null,
-    pendingDualCard: null,
-    dualResumeAfter: null,
-  };
-}
-
-function endRound(state) {
-  const p0 = state.players[0];
-  const p1 = state.players[1];
-  const roundWinner = p0.score >= p1.score ? 0 : 1;
-  const winner = state.players[roundWinner];
-
-  const newPlayers = state.players.map((p, i) => ({
-    ...p,
-    totalScore: p.totalScore + (i === roundWinner ? p.score : 0),
-    captured: [],
-    score: 0,
-    goCount: 0,
-  }));
-
-  const gameWinner = newPlayers.find((p) => p.totalScore >= state.targetScore);
-
-  if (gameWinner) {
-    return {
-      ...state,
-      players: newPlayers,
-      phase: PHASE.GAME_END,
-      winner: gameWinner.name,
-      message: `🎉 ${gameWinner.name}님이 ${gameWinner.totalScore}점으로 승리했습니다!`,
-    };
-  }
-
-  const { table, player1Hand, player2Hand, stock, dealMessage } = dealUntilValid(newPlayers);
-
-  const roundMsg = dealMessage
-    ? `${dealMessage} ${state.round + 1}판! ${state.players[roundWinner].name}님 차례`
-    : `${state.round + 1}판 시작! ${state.players[roundWinner].name}님 차례입니다.`;
-
-  return {
-    ...state,
-    players: newPlayers.map((p, i) => ({
-      ...p,
-      hand: i === 0 ? player1Hand : player2Hand,
-    })),
-    table,
-    stock,
-    currentPlayer: roundWinner,
-    round: state.round + 1,
-    phase: PHASE.PLAYING,
-    ppungBonus: 0,
-    message: roundMsg,
-  };
-}
-
+/** ① 패에서 카드 1장 — 이후 자동으로 ② 덱 뒤집기까지 진행 */
 export function playCardFromHand(state, cardId) {
   if (state.phase !== PHASE.PLAYING) return state;
   if (state.pendingCard) return state;
@@ -353,7 +216,7 @@ export function playCardFromHand(state, cardId) {
     matchSource: 'hand',
   };
 
-  newState = handleCardPlay(newState, playerIdx, card, false);
+  newState = handleCardPlay(newState, playerIdx, card, false, getCardPlayDeps());
 
   if (newState.phase === PHASE.CHOOSE_MATCH) {
     return newState;
@@ -362,29 +225,7 @@ export function playCardFromHand(state, cardId) {
   return continueAfterCapture(newState, playerIdx, RESUME_AFTER.FLIP_STOCK);
 }
 
-function flipStockCard(state) {
-  if (state.stock.length === 0) {
-    return endTurn(state);
-  }
-
-  const [flipped, ...remainingStock] = state.stock;
-  const playerIdx = state.currentPlayer;
-
-  let newState = {
-    ...state,
-    stock: remainingStock,
-    pendingCard: flipped,
-  };
-
-  newState = handleCardPlay(newState, playerIdx, flipped, true);
-
-  if (newState.phase === PHASE.CHOOSE_MATCH) {
-    return newState;
-  }
-
-  return continueAfterCapture(newState, playerIdx, RESUME_AFTER.END_TURN);
-}
-
+/** 바닥 2장 중 맞출 카드 선택 (CHOOSE_MATCH) */
 export function chooseMatch(state, tableCardId) {
   if (state.phase !== PHASE.CHOOSE_MATCH) return state;
 
@@ -394,7 +235,14 @@ export function chooseMatch(state, tableCardId) {
   if (!tableCard) return state;
 
   const isFromStock = state.matchSource === 'stock';
-  let newState = processMatch(state, playerIdx, playedCard, tableCard, isFromStock);
+  let newState = processMatch(
+    state,
+    playerIdx,
+    playedCard,
+    tableCard,
+    isFromStock,
+    getCardPlayDeps(),
+  );
 
   newState = {
     ...newState,
@@ -411,114 +259,22 @@ export function chooseMatch(state, tableCardId) {
   return continueAfterCapture(newState, playerIdx, RESUME_AFTER.FLIP_STOCK);
 }
 
+/** 9월 국화 엽('yul') / 피('pi') 선택 — 로직은 dualCapture.js */
 export function chooseCaptureType(state, asType) {
-  if (state.phase !== PHASE.CHOOSE_CAPTURE_TYPE) return state;
-  if (asType !== 'yul' && asType !== 'pi') return state;
-
-  const playerIdx = state.currentPlayer;
-  const card = state.pendingDualCard;
-  if (!card) return state;
-
-  const player = state.players[playerIdx];
-  const newCaptured = player.captured.map((c) =>
-    c.id === card.id ? applyCaptureType(c, asType) : c,
-  );
-  const updatedPlayer = updatePlayerScore({ ...player, captured: newCaptured });
-
-  let newState = {
-    ...state,
-    players: state.players.map((p, i) => (i === playerIdx ? updatedPlayer : p)),
-    pendingDualCard: null,
-    phase: PHASE.PLAYING,
-  };
-
-  const stillPending = getPendingDualCards(updatedPlayer);
-  if (stillPending.length > 0) {
-    return {
-      ...newState,
-      phase: PHASE.CHOOSE_CAPTURE_TYPE,
-      pendingDualCard: stillPending[0],
-      message: '9월 국화는 엽 또는 피 중 어디에 둘까요?',
-    };
-  }
-
-  return continueAfterCapture(newState, playerIdx, state.dualResumeAfter, true);
+  return applyCaptureTypeChoice(state, asType, getDualCaptureDeps());
 }
 
+/** 고 — goStop.js */
 export function handleGo(state) {
-  const playerIdx = state.currentPlayer;
-  const newPlayers = state.players.map((p, i) =>
-    i === playerIdx ? { ...p, goCount: p.goCount + 1 } : p
-  );
-
-  const newState = emitEvent({
-    ...state,
-    players: newPlayers,
-    phase: PHASE.PLAYING,
-    pendingCard: null,
-    matchCandidates: [],
-    matchSource: null,
-    pendingDualCard: null,
-    dualResumeAfter: null,
-    message: `${state.players[playerIdx].name}님이 고를 외쳤습니다!`,
-  }, { type: 'go', playerIdx, cards: [] });
-
-  return endTurn(newState);
+  return applyGo(state, getGoStopDeps());
 }
 
+/** 스톱 — goStop.js */
 export function handleStop(state) {
-  const playerIdx = state.currentPlayer;
-  const player = state.players[playerIdx];
-  const multiplier = 1 + player.goCount;
-
-  const newPlayers = state.players.map((p, i) => {
-    if (i === playerIdx) {
-      return { ...p, totalScore: p.totalScore + p.score * multiplier };
-    }
-    return p;
-  });
-
-  const updatedPlayer = newPlayers[playerIdx];
-  if (updatedPlayer.totalScore >= state.targetScore) {
-    return {
-      ...state,
-      players: newPlayers,
-      phase: PHASE.GAME_END,
-      winner: updatedPlayer.name,
-      message: `🎉 ${updatedPlayer.name}님이 ${updatedPlayer.totalScore}점으로 승리했습니다!`,
-    };
-  }
-
-  const { table, player1Hand, player2Hand, stock, dealMessage } = dealUntilValid(newPlayers);
-
-  const stopMsg = dealMessage
-    ? `${dealMessage} 스톱! ${player.name}님 ${player.score * multiplier}점. ${state.round + 1}판 시작!`
-    : `스톱! ${player.name}님이 ${player.score * multiplier}점 획득. ${state.round + 1}판 시작!`;
-
-  return {
-    ...state,
-    players: newPlayers.map((p, i) => ({
-      ...p,
-      hand: i === 0 ? player1Hand : player2Hand,
-      captured: [],
-      score: 0,
-      goCount: 0,
-    })),
-    table,
-    stock,
-    currentPlayer: playerIdx,
-    round: state.round + 1,
-    phase: PHASE.PLAYING,
-    ppungBonus: 0,
-    pendingCard: null,
-    matchCandidates: [],
-    matchSource: null,
-    pendingDualCard: null,
-    dualResumeAfter: null,
-    message: stopMsg,
-  };
+  return applyStop(state, getGoStopDeps());
 }
 
+/** 시작 화면에서 새 게임 */
 export function startNewGame(playerName, targetScore = 7, difficulty = 'normal') {
   const state = createInitialState(playerName, '컴퓨터');
   return { ...state, targetScore, difficulty, phase: PHASE.PLAYING };
