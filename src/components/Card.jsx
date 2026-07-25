@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getCardBackPath } from '../data/cardImages';
 
 export default function Card({ card, onClick, selected, disabled, size = 'normal', faceDown }) {
-  if (faceDown) {
+  const [src, setSrc] = useState(card?.image ?? '');
+
+  useEffect(() => {
+    setSrc(card?.image ?? '');
+  }, [card?.image]);
+
+  if (faceDown || !card) {
     return (
       <button
         className={`card card-back card-${size} ${selected ? 'card-selected' : ''}`}
@@ -13,10 +19,6 @@ export default function Card({ card, onClick, selected, disabled, size = 'normal
       </button>
     );
   }
-
-  if (!card) return null;
-
-  const [src, setSrc] = useState(card.image);
 
   return (
     <button

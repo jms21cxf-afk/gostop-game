@@ -78,7 +78,7 @@ export default function HelpModal({ onClose }) {
             <li><strong>초단</strong> (4,5,6월 띠): 3점</li>
             <li><strong>엽</strong> 5장 이상: 장당 1점</li>
             <li><strong>띠</strong> 5장 이상: 장당 1점</li>
-            <li><strong>피</strong> 10장 이상: 장당 1점 (9월 국화·11·12월 쌍피는 <strong>2장분</strong>)</li>
+            <li><strong>피</strong> 10장 이상: 장당 1점 (9월 국화·11월 쌍피는 <strong>2장분</strong>)</li>
           </ul>
         </section>
 

@@ -1,9 +1,12 @@
 import GameBoard from './components/GameBoard';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
     <div className="app">
-      <GameBoard />
+      <ErrorBoundary>
+        <GameBoard />
+      </ErrorBoundary>
     </div>
   );
 }

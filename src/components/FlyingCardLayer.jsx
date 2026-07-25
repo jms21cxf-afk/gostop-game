@@ -14,15 +14,19 @@ const ZONES = {
 };
 
 const FLY_MS = 1600;
-const FLY_TO_PILE_MS = 700;
 const FLIP_AT_PILE_MS = 550;
-const FADE_PILE_MS = 320;
-const PLACE_TOTAL_MS = FLY_TO_PILE_MS + FLIP_AT_PILE_MS + FADE_PILE_MS + 80;
+const FLY_TO_TABLE_MS = 700;
+const PILE_DRAW_MS = 80;
+const FLIP_STOCK_PLACE_MS = PILE_DRAW_MS + FLIP_AT_PILE_MS + FLY_TO_TABLE_MS + 80;
 const STAGGER_MS = 220;
 const PPUNG_FLY_MS = 1800;
 
-function isPlaceOnTable(event) {
-  return event.to === 'table' && event.type !== 'ppung';
+function isFlipStockToTable(event) {
+  return event?.type === 'flip_stock' && event.to === 'table';
+}
+
+function isHandToTable(event) {
+  return event?.type === 'play_hand' && event.to === 'table';
 }
 
 export default function FlyingCardLayer({ event, onDone, onPileActive }) {
@@ -43,37 +47,57 @@ export default function FlyingCardLayer({ event, onDone, onPileActive }) {
       return undefined;
     }
 
-    if (isPlaceOnTable(event)) {
+    // ② 덱: 뒤집는 더미에서 뒤집고 → 바닥
+    if (isFlipStockToTable(event)) {
       const card = event.cards[0];
-      const fromKey = event.type === 'flip_stock' ? 'stock' : (event.playerIdx === 0 ? 'hand0' : 'hand1');
-      const from = ZONES[fromKey];
       const pile = ZONES.pile;
+      const table = ZONES.table;
 
       onPileActive?.(true);
-      setPlacePhase('to-pile');
+      setPlacePhase('at-pile');
       setItems([{
         id: `${event.seq}-place`,
         card,
         mode: 'place',
-        from,
-        faceDown: true,
+        pile,
+        table,
       }]);
 
-      const t1 = setTimeout(() => {
+      const t0 = setTimeout(() => {
         setPlacePhase('flip');
         playSound('flipCard');
-      }, FLY_TO_PILE_MS);
-      const t2 = setTimeout(() => {
-        setPlacePhase('land');
+      }, PILE_DRAW_MS);
+      const t1 = setTimeout(() => {
+        setPlacePhase('fly-table');
         playSound('place');
-      }, FLY_TO_PILE_MS + FLIP_AT_PILE_MS);
-      const t3 = setTimeout(() => finish(), PLACE_TOTAL_MS);
+      }, PILE_DRAW_MS + FLIP_AT_PILE_MS);
+      const t2 = setTimeout(() => finish(), FLIP_STOCK_PLACE_MS);
 
       return () => {
+        clearTimeout(t0);
         clearTimeout(t1);
         clearTimeout(t2);
-        clearTimeout(t3);
       };
+    }
+
+    // ① 패: 매칭 없으면 패 → 바닥 직행
+    if (isHandToTable(event)) {
+      const card = event.cards[0];
+      const from = ZONES[event.playerIdx === 0 ? 'hand0' : 'hand1'];
+      const to = ZONES.table;
+
+      setItems([{
+        id: `${event.seq}-hand-table`,
+        card,
+        mode: 'fly',
+        from,
+        to,
+        delay: 0,
+        duration: FLY_MS,
+      }]);
+
+      const timer = setTimeout(() => finish(), FLY_MS + 80);
+      return () => clearTimeout(timer);
     }
 
     const toKey = event.to === 'captured' ? `captured${event.playerIdx}` : 'table';
@@ -82,12 +106,12 @@ export default function FlyingCardLayer({ event, onDone, onPileActive }) {
     const newItems = event.cards.map((card, i) => {
       let fromKey;
       if (event.type === 'flip_stock') {
-        fromKey = i === 0 ? 'stock' : 'table';
+        fromKey = i === 0 ? 'pile' : 'table';
       } else if (event.type === 'play_hand') {
         fromKey = i === 0 ? (event.playerIdx === 0 ? 'hand0' : 'hand1') : 'table';
       } else if (event.type === 'ppung') {
         fromKey = i === 0
-          ? (event.from === 'stock' ? 'stock' : (event.playerIdx === 0 ? 'hand0' : 'hand1'))
+          ? (event.from === 'stock' ? 'pile' : (event.playerIdx === 0 ? 'hand0' : 'hand1'))
           : 'table';
       } else {
         fromKey = 'table';
@@ -106,6 +130,10 @@ export default function FlyingCardLayer({ event, onDone, onPileActive }) {
       };
     });
 
+    if (event.type === 'flip_stock' && event.to === 'captured') {
+      onPileActive?.(true);
+    }
+
     setItems(newItems);
     const maxDelay = (event.cards.length - 1) * STAGGER_MS;
     const timer = setTimeout(() => finish(), duration + maxDelay + 80);
@@ -119,20 +147,19 @@ export default function FlyingCardLayer({ event, onDone, onPileActive }) {
     <div className="flying-layer" aria-hidden="true">
       {items.map((item) => {
         if (item.mode === 'place') {
-          const pile = ZONES.pile;
           const phaseClass = placePhase === 'flip' ? 'place-flip'
-            : placePhase === 'land' ? 'place-land'
-            : 'place-to-pile';
+            : placePhase === 'fly-table' ? 'place-fly-table'
+            : 'place-at-pile';
 
           return (
             <div
               key={item.id}
               className={`flying-card flying-place ${phaseClass}`}
               style={{
-                '--fx': `${item.from.x}%`,
-                '--fy': `${item.from.y}%`,
-                '--px': `${pile.x}%`,
-                '--py': `${pile.y}%`,
+                '--px': `${item.pile.x}%`,
+                '--py': `${item.pile.y}%`,
+                '--tx': `${item.table.x}%`,
+                '--ty': `${item.table.y}%`,
               }}
             >
               <div className="flip-card-3d">

@@ -22,7 +22,6 @@ export const DEAL_RULES = { table: 8, hand: 10, stock: 20 };
 const TYPE_OVERRIDES = {
   4: 'kwang',  // 2월 Tane = 매화광
   41: 'tti',   // 11월 Kasu_1 = 띠 (Tanzaku 파일 없음)
-  47: 'pi',    // 12월 Hikari 그림 = 쌍피
 };
 
 export function resolveTypeFromImage(imageIndex) {
@@ -102,11 +101,11 @@ const CARD_DEFS = [
   { month: 11, label: '쌍피', piValue: 2, imageIndex: 42 },
   { month: 11, label: '피', piValue: 1, imageIndex: 43 },
 
-  // 12월 Tane, Tanzaku, Kasu, Hikari(쌍피)
+  // 12월 Tane, Tanzaku, Kasu, Hikari(12광)
   { month: 12, label: '제비', isBird: true, imageIndex: 44 },
   { month: 12, label: '비단', ribbon: 'plain', imageIndex: 45 },
   { month: 12, label: '피', piValue: 1, imageIndex: 46 },
-  { month: 12, label: '쌍피', piValue: 2, imageIndex: 47 },
+  { month: 12, label: '광', isRain: false, imageIndex: 47 },
 ];
 
 /** 9·11·12월 — 피 칸에 있을 때 점수·집계 2장분 */
@@ -117,7 +116,7 @@ export function getPiScoringValue(card) {
     return n >= 0 && n < CARD_DEFS.length ? CARD_DEFS[n].imageIndex : null;
   })();
   if (idx === 32 && card.dualYulPi) return 2;
-  if (idx === 42 || idx === 47) return 2;
+  if (idx === 42) return 2;
   return card.piValue ?? 1;
 }
 
@@ -198,16 +197,22 @@ export function normalizeCards(cards) {
 
 export function normalizeGameState(state) {
   if (!state) return null;
+  const players = (state.players || []).map((p) => ({
+    ...p,
+    hand: normalizeCards(p?.hand),
+    captured: normalizeCards(p?.captured),
+    name: p?.name ?? '플레이어',
+    score: p?.score ?? 0,
+    totalScore: p?.totalScore ?? 0,
+    goCount: p?.goCount ?? 0,
+  }));
+  if (players.length < 2) return null;
   return {
     ...state,
     table: normalizeCards(state.table),
     stock: normalizeCards(state.stock),
     pendingCard: state.pendingCard ? normalizeCard(state.pendingCard) : null,
     matchCandidates: normalizeCards(state.matchCandidates),
-    players: (state.players || []).map((p) => ({
-      ...p,
-      hand: normalizeCards(p.hand),
-      captured: normalizeCards(p.captured),
-    })),
+    players,
   };
 }

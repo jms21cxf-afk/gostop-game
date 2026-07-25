@@ -49,7 +49,7 @@ export default function TableArea({
           </div>
         )}
 
-        <FloorFlipPile active={pileActive} />
+        <FloorFlipPile active={pileActive} stockCount={stockCount} />
 
         <div className="table-cards-scatter">
           {cards.length === 0 ? (
