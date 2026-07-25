@@ -1,6 +1,6 @@
 import { Component } from 'react';
 
-/** React 렌더 오류 시 초록 빈 화면 대신 복구 UI */
+/** React 렌더 오류 + window 전역 오류 (모바일 크래시) */
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -9,6 +9,25 @@ export default class ErrorBoundary extends Component {
 
   static getDerivedStateFromError(error) {
     return { error };
+  }
+
+  componentDidMount() {
+    this.onWindowError = (event) => {
+      if (event.error) this.setState({ error: event.error });
+    };
+    this.onRejection = (event) => {
+      const reason = event.reason instanceof Error
+        ? event.reason
+        : new Error(String(event.reason ?? '알 수 없는 오류'));
+      this.setState({ error: reason });
+    };
+    window.addEventListener('error', this.onWindowError);
+    window.addEventListener('unhandledrejection', this.onRejection);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('error', this.onWindowError);
+    window.removeEventListener('unhandledrejection', this.onRejection);
   }
 
   componentDidCatch(error, info) {
@@ -30,23 +49,24 @@ export default class ErrorBoundary extends Component {
 
   render() {
     const { error } = this.state;
-    if (!error) return this.props.children;
-
-    return (
-      <div className="error-fallback">
-        <div className="error-fallback-box">
-          <h1>잠깐 문제가 생겼어요</h1>
-          <p>게임 화면을 불러오지 못했습니다. 새로고침하면 대부분 해결됩니다.</p>
-          <div className="error-fallback-actions">
-            <button type="button" className="btn btn-primary btn-large" onClick={this.handleReload}>
-              새로고침
-            </button>
-            <button type="button" className="btn btn-secondary btn-large" onClick={this.handleReset}>
-              저장 지우고 다시 시작
-            </button>
+    if (error) {
+      return (
+        <div className="error-fallback">
+          <div className="error-fallback-box">
+            <h1>잠깐 문제가 생겼어요</h1>
+            <p>게임 화면을 불러오지 못했습니다. 새로고침하면 대부분 해결됩니다.</p>
+            <div className="error-fallback-actions">
+              <button type="button" className="btn btn-primary btn-large" onClick={this.handleReload}>
+                새로고침
+              </button>
+              <button type="button" className="btn btn-secondary btn-large" onClick={this.handleReset}>
+                저장 지우고 다시 시작
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    );
+      );
+    }
+    return this.props.children;
   }
 }

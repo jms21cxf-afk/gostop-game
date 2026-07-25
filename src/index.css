@@ -1445,10 +1445,10 @@ button {
     min-height: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: minmax(240px, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) minmax(112px, 24svh);
     gap: 3px;
     padding: 2px 4px;
-    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
     overflow: hidden;
   }
 
@@ -1456,9 +1456,9 @@ button {
     order: 0;
     grid-column: 1 / -1;
     grid-row: 1;
-    min-height: 240px;
+    min-height: 0;
     gap: 2px;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .captured-left {
@@ -1476,7 +1476,9 @@ button {
   }
 
   .captured-strip {
-    max-height: clamp(72px, 14vh, 96px);
+    max-height: none;
+    min-height: 0;
+    height: 100%;
     padding: 3px 4px;
     flex-direction: column;
     overflow-x: hidden;
@@ -1519,6 +1521,16 @@ button {
     display: none;
   }
 
+  .player-hand.player-top {
+    flex-shrink: 0;
+    padding: 2px 4px;
+  }
+
+  .table-area {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
   .stock-pile {
     display: none;
   }
@@ -1533,13 +1545,15 @@ button {
   }
 
   .player-hand.player-bottom {
-    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    padding-bottom: max(2px, env(safe-area-inset-bottom));
+    flex-shrink: 1;
+    min-height: 0;
   }
 
   .player-hand.player-bottom .hand-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 4px;
+    gap: 2px;
   }
 
   .player-hand.player-bottom .hand-side-info {
@@ -1554,23 +1568,24 @@ button {
   .player-hand.player-bottom .hand-cards {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px 4px;
+    gap: 3px 2px;
     overflow: visible;
     width: 100%;
     flex: none;
-    padding: 0 2px 4px;
+    padding: 0 2px 2px;
     justify-content: center;
   }
 
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
+    max-height: clamp(44px, 9vw, 54px);
     aspect-ratio: 103 / 168;
     max-width: 100%;
     justify-self: center;
     background: transparent;
     border: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     overflow: visible;
   }
 
@@ -1694,8 +1709,8 @@ button {
   }
 
   .card-captured {
-    width: clamp(22px, 5vw, 28px);
-    height: clamp(34px, 7.8vw, 44px);
+    width: clamp(20px, 4.5vw, 26px);
+    height: clamp(31px, 7vw, 40px);
   }
 
   .captured-card-landing {
@@ -1760,6 +1775,7 @@ button {
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
+    max-height: clamp(40px, 8.5vw, 50px);
     aspect-ratio: 103 / 168;
   }
 
@@ -1828,6 +1844,7 @@ button {
   .player-hand.player-bottom .hand-cards .card-xl {
     width: 100%;
     height: auto;
+    max-height: clamp(40px, 8.5vw, 50px);
     aspect-ratio: 103 / 168;
   }
 
