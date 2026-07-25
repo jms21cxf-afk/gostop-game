@@ -27,16 +27,23 @@ function getQueuedPrehideEvents(gameState, processedSeq, animEvent, animQueue) {
   const notInQueueYet = (gameState?.eventQueue ?? []).filter(
     (e) => e.seq > processedSeq && !queueSeqs.has(e.seq),
   );
-  return [...waiting, ...notInQueueYet];
+  // 재생 중인 이벤트도 prehide 대상 (바닥·먹은패가 애니 전에 보이지 않게)
+  const current = animEvent ? [animEvent] : [];
+  return [...current, ...waiting, ...notInQueueYet];
 }
 
 function getPrehiddenIds(events) {
   const captured = [];
+  const table = [];
   for (const ev of events) {
     if (!ev.cards?.length) continue;
     if (ev.to === 'captured') captured.push(...ev.cards.map((c) => c.id));
+    if (ev.to === 'table') table.push(...ev.cards.map((c) => c.id));
   }
-  return { captured: [...new Set(captured)] };
+  return {
+    captured: [...new Set(captured)],
+    table: [...new Set(table)],
+  };
 }
 
 function playEventSound(event) {
@@ -47,10 +54,8 @@ function playEventSound(event) {
       if (event.to === 'captured') playSound('match');
       break;
     case 'flip_stock':
-      if (event.to === 'captured') {
-        playSound('flipCard');
-        playSound('match');
-      }
+      playSound('flipCard');
+      if (event.to === 'captured') playSound('match');
       break;
     case 'ppung':
       playSound('ppung');
@@ -238,6 +243,7 @@ export default function GameBoard() {
   );
   const prehidden = getPrehiddenIds(queuedPrehide);
   const displayHiddenCaptured = [...new Set([...hiddenCapturedIds, ...prehidden.captured])];
+  const displayHiddenTable = prehidden.table;
 
   const startNextAnimation = useCallback(() => {
     if (animEventRef.current || turnRestingRef.current) return;
@@ -435,6 +441,7 @@ export default function GameBoard() {
             highlightCardId={aiTableHighlight}
             pileActive={pileActive}
             chooseMonth={isChoosing ? gameState.pendingCard?.month : null}
+            hiddenIds={displayHiddenTable}
           />
 
           {isChoosing && (

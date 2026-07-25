@@ -76,24 +76,35 @@ export default function FlyingCardLayer({ event, onDone, onPileActive }) {
       };
     }
 
-    const fromKey = event.type === 'flip_stock' ? 'stock'
-      : event.type === 'play_hand' ? (event.playerIdx === 0 ? 'hand0' : 'hand1')
-      : 'table';
     const toKey = event.to === 'captured' ? `captured${event.playerIdx}` : 'table';
-
-    const from = ZONES[fromKey] || ZONES.table;
-    const to = ZONES[toKey] || ZONES.table;
     const duration = event.type === 'ppung' ? PPUNG_FLY_MS : FLY_MS;
 
-    const newItems = event.cards.map((card, i) => ({
-      id: `${event.seq}-${card.id}-${i}`,
-      card,
-      mode: 'fly',
-      from,
-      to,
-      delay: i * STAGGER_MS,
-      duration,
-    }));
+    const newItems = event.cards.map((card, i) => {
+      let fromKey;
+      if (event.type === 'flip_stock') {
+        fromKey = i === 0 ? 'stock' : 'table';
+      } else if (event.type === 'play_hand') {
+        fromKey = i === 0 ? (event.playerIdx === 0 ? 'hand0' : 'hand1') : 'table';
+      } else if (event.type === 'ppung') {
+        fromKey = i === 0
+          ? (event.from === 'stock' ? 'stock' : (event.playerIdx === 0 ? 'hand0' : 'hand1'))
+          : 'table';
+      } else {
+        fromKey = 'table';
+      }
+
+      const from = ZONES[fromKey] || ZONES.table;
+      const to = ZONES[toKey] || ZONES.table;
+      return {
+        id: `${event.seq}-${card.id}-${i}`,
+        card,
+        mode: 'fly',
+        from,
+        to,
+        delay: i * STAGGER_MS,
+        duration,
+      };
+    });
 
     setItems(newItems);
     const maxDelay = (event.cards.length - 1) * STAGGER_MS;

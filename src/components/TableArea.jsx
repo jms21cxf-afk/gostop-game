@@ -28,9 +28,12 @@ export default function TableArea({
   highlightCardId,
   pileActive = false,
   chooseMonth = null,
+  hiddenIds = [],
 }) {
   const compact = useCompactLayout();
-  const layouts = getTableCardLayout(cards, { compact });
+  const hidden = new Set(hiddenIds);
+  const visibleCards = cards.filter((c) => !hidden.has(c.id));
+  const layouts = getTableCardLayout(visibleCards, { compact });
 
   return (
     <div className="table-area">
@@ -73,7 +76,7 @@ export default function TableArea({
           )}
         </div>
       </div>
-      <span className="table-label">바닥 {cards.length}장</span>
+      <span className="table-label">바닥 {visibleCards.length}장</span>
     </div>
   );
 }
